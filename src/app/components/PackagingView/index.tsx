@@ -1,13 +1,17 @@
-import { Text, Card, Button, Progress } from '@gravity-ui/uikit';
-import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Card, Progress, Text } from '@gravity-ui/uikit';
+import React, { useCallback, useEffect, useState } from 'react';
 
-
+import { useBackup } from '@/app/hooks';
+import {
+  createPackageWithSSCC,
+  getPackages,
+  getPackagingProgress,
+  preparePackageLabelZpl,
+} from '@/app/services/packagingService';
+import { IShiftScheme, ShiftStatus } from '@/app/types';
+import { formatSSCC } from '@/app/utils';
 import { PackageVerificationModal } from '../PackageVerificationModal';
 import styles from './PackagingView.module.scss';
-import { IShiftScheme, ShiftStatus } from '@/app/types';
-import { useBackup } from '@/app/hooks';
-import { createPackageWithSSCC, getPackages, getPackagingProgress, preparePackageLabelZpl } from '@/app/services/packagingService';
-import { formatSSCC } from '@/app/utils';
 
 interface PackagingViewProps {
   shift: IShiftScheme;
@@ -56,7 +60,7 @@ export const PackagingView: React.FC<PackagingViewProps> = ({ shift }) => {
 
     try {
       // Создаем упаковку с SSCC кодом от бэкенда
-      const newPackage = await createPackageWithSSCC(shift.id);
+      const newPackage = await createPackageWithSSCC(shift.id, shift.product.id);
 
       if (newPackage) {
         // Сохраняем SSCC код для верификации

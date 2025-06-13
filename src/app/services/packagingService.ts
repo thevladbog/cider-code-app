@@ -1,4 +1,4 @@
-import { generateSSCC, verifyPackage } from '../api/queries';
+import { packCodes, verifyPackage } from '../api/queries';
 import { DataMatrixData, IShiftScheme, PackageWithSSCC } from '../types';
 
 // Хранение упаковочных кодов в памяти
@@ -50,12 +50,16 @@ export function addToCurrentBatch(shiftId: string, data: DataMatrixData): number
 }
 
 /**
- * Запрашивает SSCC код с бэкенда и создает новую упаковку из текущей партии
+ * Запрашивает упаковку кодов с бэкенда и создает новую упаковку из текущей партии
  *
  * @param shiftId - ID смены
+ * @param productId - ID продукта для упаковки
  * @returns Промис с данными созданной упаковки или null, если партия пуста
  */
-export async function createPackageWithSSCC(shiftId: string): Promise<PackageWithSSCC | null> {
+export async function createPackageWithSSCC(
+  shiftId: string,
+  productId: string
+): Promise<PackageWithSSCC | null> {
   initCacheForShift(shiftId);
 
   const currentBatch = packagingCache[shiftId].currentBatch;
@@ -68,20 +72,23 @@ export async function createPackageWithSSCC(shiftId: string): Promise<PackageWit
   const itemCodes = currentBatch.map(
     item => `${item.gtin}_${item.countryCode}${item.serialNumber}`
   );
-
-  // Запрашиваем SSCC код с бэкенда
+  // Запрашиваем упаковку кодов с бэкенда
   try {
-    const response = await generateSSCC({ shiftId, productCodes: itemCodes });
-
-    if (!response.success || !response.sscc) {
-      throw new Error(response.message || 'Failed to generate SSCC code');
-    }
+    // Генерируем временный SSCC код (в реальном приложении это должно быть на бэкенде)
+    const tempSSCC = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const response = await packCodes({
+      id: Date.now(), // Временный ID
+      ssccCode: tempSSCC,
+      codes: itemCodes,
+      shiftId,
+      productId, // Используем переданный productId
+    });
 
     // Создаем объект упаковки
     const newPackage: PackageWithSSCC = {
-      sscc: response.sscc,
+      sscc: response.ssccCode,
       items: itemCodes,
-      timestamp: response.timestamp || Date.now(),
+      timestamp: Date.now(),
     };
 
     // Добавляем упаковку в список и очищаем текущую партию

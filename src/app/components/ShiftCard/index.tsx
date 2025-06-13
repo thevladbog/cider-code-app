@@ -2,11 +2,11 @@ import { Text } from '@gravity-ui/uikit';
 import classNames from 'classnames';
 import React from 'react';
 
-import styles from './ShiftCard.module.scss';
 import { IShiftScheme, ShiftStatus } from '../../types';
+import styles from './ShiftCard.module.scss';
 
 // Заглушка изображения для смен без картинки
-import DEFAULT_IMAGE from '@/assets/default-product-image.svg'
+import DEFAULT_IMAGE from '@/assets/default-product-image.svg';
 // Функция форматирования даты
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -36,6 +36,8 @@ export const ShiftCard: React.FC<ShiftCardProps> = ({ shift, onClick }) => {
         return styles.statusInProgress;
       case ShiftStatus.DONE:
         return styles.statusArchived;
+      case ShiftStatus.PAUSED:
+        return styles.statusPaused;
       case ShiftStatus.CANCELED:
         return styles.statusCanceled;
       default:
@@ -52,6 +54,8 @@ export const ShiftCard: React.FC<ShiftCardProps> = ({ shift, onClick }) => {
         return 'В работе';
       case ShiftStatus.DONE:
         return 'Архив';
+      case ShiftStatus.PAUSED:
+        return 'На паузе';
       case ShiftStatus.CANCELED:
         return 'Отменена';
       default:

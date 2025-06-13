@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Navigate, Route, HashRouter as Router, Routes } from 'react-router-dom';
 
+import { configureOpenAPI } from './api/config';
 import { DeviceCheckScreen } from './components/DeviceCheckScreen';
 import { ScanScreen } from './components/ScanScreen';
 import { ShiftDetailScreen } from './components/ShiftDetailScreen';
@@ -10,6 +11,9 @@ import { ShiftsScreen } from './components/ShiftsScreen';
 import { initializeDevices } from './store/deviceStore';
 import { initializeSettings, setupSettingsListeners } from './store/settingsStore';
 import './styles/global.scss';
+
+// Инициализируем OpenAPI перед запуском приложения
+configureOpenAPI();
 
 // Создаем QueryClient для React Query
 const queryClient = new QueryClient({

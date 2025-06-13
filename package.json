@@ -15,7 +15,8 @@
     "prettier": "prettier --check .",
     "prettier:fix": "prettier --write .",
     "format": "yarn prettier:fix && yarn lint:fix",
-    "rebuild": "electron-rebuild"
+    "rebuild": "electron-rebuild",
+    "generate-api-client": "curl -k -o ./src/app/api/openapi.yaml https://api.test.in.bottlecode.app:3035/api/yaml && openapi --input ./src/app/api/openapi.yaml --output ./src/app/api/generated --client axios --useOptions --useUnionTypes"
   },
   "keywords": [],
   "author": {
@@ -46,6 +47,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "fork-ts-checker-webpack-plugin": "^7.3.0",
     "node-loader": "^2.1.0",
+    "openapi-typescript-codegen": "^0.29.0",
     "sass": "^1.89.0",
     "sass-loader": "^16.0.5",
     "style-loader": "^3.3.4",

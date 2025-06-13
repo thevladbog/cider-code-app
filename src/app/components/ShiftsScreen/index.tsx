@@ -1,8 +1,8 @@
-import { Button, Text, Spin, Tab, TabList } from '@gravity-ui/uikit';
+import { Button, Spin, Tab, TabList, Text } from '@gravity-ui/uikit';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useShifts } from '../../api/queries';
+import { useLogout, useShifts } from '../../api/queries';
 import { ShiftStatus } from '../../types';
 import { CreateShiftModal } from '../CreateShiftModal';
 import { ShiftCard } from '../ShiftCard';
@@ -28,6 +28,7 @@ export const ShiftsScreen: React.FC = () => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
 
   const { data: shifts, isLoading, error, refetch } = useShifts();
+  const logout = useLogout();
 
   // Фильтрация смен по статусу
   const filteredShifts = shifts
@@ -46,6 +47,14 @@ export const ShiftsScreen: React.FC = () => {
     setCreateModalVisible(false);
     navigate(`/shifts/${shiftId}`);
   };
+  // Обработчик выхода пользователя
+  const handleLogout = () => {
+    logout.mutate(undefined, {
+      onSuccess: () => {
+        navigate('/');
+      },
+    });
+  };
 
   return (
     <div className={styles.shiftsScreen}>
@@ -54,9 +63,14 @@ export const ShiftsScreen: React.FC = () => {
           <Text variant="display-3">Управление сменами</Text>
         </div>
 
-        <Button view="action" size="l" onClick={() => setCreateModalVisible(true)}>
-          Создать новую смену
-        </Button>
+        <div className={styles.headerActions}>
+          <Button view="outlined" size="l" onClick={handleLogout} loading={logout.isPending}>
+            Выйти
+          </Button>
+          <Button view="action" size="l" onClick={() => setCreateModalVisible(true)}>
+            Создать новую смену
+          </Button>
+        </div>
       </div>
 
       <div className={styles.gridContainer}>

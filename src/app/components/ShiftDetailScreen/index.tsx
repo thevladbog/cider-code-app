@@ -15,7 +15,6 @@ export const ShiftDetailScreen: React.FC = () => {
   const { shiftId } = useParams<{ shiftId: string }>();
   const navigate = useNavigate();
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [isPaused, setIsPaused] = useState(false);
   const [errorIndex, setErrorIndex] = useState<number | null>(null);
   const [useCrates, setUseCrates] = useState(true);
   const [currentBoxCodes, setCurrentBoxCodes] = useState<DataMatrixData[]>([]);
@@ -135,11 +134,13 @@ export const ShiftDetailScreen: React.FC = () => {
         }
       };
     }
-  }, [activeModal, pendingSSCC]);
-  // Интеграция с хуком сканирования для основного интерфейса
+  }, [activeModal, pendingSSCC]); // Интеграция с хуком сканирования для основного интерфейса
   const { scanMessage, scanError } = useScannerInShift({
     shift: shift?.result || null,
-    enabled: !isPaused && !activeModal && !isPrinting, // Отключаем сканер при печати и в модальном окне
+    enabled:
+      shift?.result.status === 'INPROGRESS' && // Сканирование только при активной смене
+      !activeModal &&
+      !isPrinting, // Отключаем сканер при печати и в модальном окне
     onScanSuccess: data => {
       // Обрабатываем успешное сканирование
       handleCodeScanned(data);
@@ -224,7 +225,6 @@ export const ShiftDetailScreen: React.FC = () => {
 
     setPrintLock(false);
   };
-
   // Обработчик завершения смены
   const handleFinishShift = () => {
     // Проверка, закрыт ли текущий короб
@@ -236,27 +236,33 @@ export const ShiftDetailScreen: React.FC = () => {
     // Вызов API для завершения смены
     if (shiftId) {
       updateStatus(
-        { shiftId: shiftId, status: ShiftStatus.DONE },
+        { shiftId: shiftId, status: 'DONE' },
         {
           onSuccess: () => {
             navigate('/shifts');
           },
+          onError: error => {
+            console.error('Failed to finish shift:', error);
+            speakMessage('Ошибка завершения смены');
+          },
         }
       );
     } else {
-      // Можно обработать ошибку или показать уведомление
       console.error('shiftId is undefined, cannot finish shift');
     }
-  };
-
-  // Обработчик для возврата на экран со сменами с переводом статуса в паузу
+  }; // Обработчик для возврата на экран со сменами с переводом статуса в паузу
   const handleBackToShifts = () => {
     // Изменяем статус смены на "Пауза" если она была активна
-    if (shift?.result.status === ShiftStatus.PLANNED) {
+    if (shift?.result.status === 'INPROGRESS') {
       updateStatus(
-        { shiftId: shiftId!, status: ShiftStatus.PAUSED },
+        { shiftId: shiftId!, status: 'PAUSED' },
         {
           onSuccess: () => {
+            navigate('/shifts');
+          },
+          onError: error => {
+            console.error('Failed to pause shift:', error);
+            // В случае ошибки все равно возвращаемся к списку
             navigate('/shifts');
           },
         }
@@ -271,6 +277,38 @@ export const ShiftDetailScreen: React.FC = () => {
   const handleUseCratesChange = (value: boolean) => {
     setUseCrates(value);
     // Здесь можно также сохранить настройку в API
+  };
+
+  // Обработчик изменения статуса смены (пауза/возобновление)
+  const handleToggleShiftStatus = () => {
+    if (!shiftId || !shift) return;
+
+    const currentStatus = shift.result.status;
+    let newStatus: 'PLANNED' | 'INPROGRESS' | 'PAUSED' | 'DONE' | 'CANCELED';
+
+    if (currentStatus === 'PLANNED') {
+      newStatus = 'INPROGRESS';
+    } else if (currentStatus === 'INPROGRESS') {
+      newStatus = 'PAUSED';
+    } else if (currentStatus === 'PAUSED') {
+      newStatus = 'INPROGRESS';
+    } else {
+      // Для завершенных или отмененных смен не меняем статус
+      return;
+    }
+
+    updateStatus(
+      { shiftId, status: newStatus },
+      {
+        onSuccess: () => {
+          console.log(`Shift status changed to: ${newStatus}`);
+        },
+        onError: error => {
+          console.error('Failed to change shift status:', error);
+          speakMessage('Ошибка изменения статуса смены');
+        },
+      }
+    );
   };
 
   // Колонки для таблицы кодов
@@ -318,7 +356,6 @@ export const ShiftDetailScreen: React.FC = () => {
       </div>
     );
   }
-
   const product = shift.result.product;
   const boxCapacity = shift.result.countInBox || 0;
   const isPacking = shift.result.packing;
@@ -340,7 +377,7 @@ export const ShiftDetailScreen: React.FC = () => {
           >
             {shift.result.status === ShiftStatus.PLANNED
               ? 'Активна'
-              : getStatusText(shift.result.status)}
+              : getStatusText(shift.result.status as ShiftStatus)}
           </Label>
         </div>
 
@@ -477,18 +514,23 @@ export const ShiftDetailScreen: React.FC = () => {
                   <Printer /> Закрыть короб
                 </Button>
               </>
-            )}
-
+            )}{' '}
             <Button
-              view={isPaused ? 'outlined-warning' : 'normal'}
+              view={shift.result.status === 'PAUSED' ? 'outlined-warning' : 'normal'}
               size="xl"
-              onClick={() => setIsPaused(!isPaused)}
-              disabled={printLock}
+              onClick={handleToggleShiftStatus}
+              disabled={
+                printLock || shift.result.status === 'DONE' || shift.result.status === 'CANCELED'
+              }
               className={styles.actionButton}
             >
-              {isPaused ? <Play /> : <Pause />} {isPaused ? 'Возобновить' : 'Пауза'}
+              {shift.result.status === 'PAUSED' ? <Play /> : <Pause />}
+              {shift.result.status === 'PAUSED'
+                ? 'Возобновить'
+                : shift.result.status === 'PLANNED'
+                  ? 'Начать смену'
+                  : 'Пауза'}
             </Button>
-
             <Button
               view="outlined-danger"
               size="xl"
@@ -504,11 +546,16 @@ export const ShiftDetailScreen: React.FC = () => {
 
       {/* Строка сканирования внизу */}
       <div className={styles.scanBar}>
+        {' '}
         <Text variant="display-1">
           {printLock
             ? 'Печать этикетки...'
-            : isPaused
-              ? 'Сканирование на паузе'
+            : shift?.result.status !== 'INPROGRESS'
+              ? shift?.result.status === 'PAUSED'
+                ? 'Сканирование на паузе'
+                : shift?.result.status === 'PLANNED'
+                  ? 'Нажмите "Начать смену" для начала сканирования'
+                  : 'Смена завершена'
               : 'Отсканируйте код маркировки'}
         </Text>
         {scanError && (

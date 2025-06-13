@@ -1,9 +1,9 @@
-import { Modal, Text, Button, Spin } from '@gravity-ui/uikit';
+import { Button, Modal, Spin, Text } from '@gravity-ui/uikit';
 import React, { useEffect, useState } from 'react';
 
-import styles from './CreateShiftModal.module.scss';
 import { useCreateShift } from '@/app/api/queries';
-
+import { CreateShiftDto } from '@/app/types';
+import styles from './CreateShiftModal.module.scss';
 
 interface CreateShiftModalProps {
   visible: boolean;
@@ -59,7 +59,6 @@ export const CreateShiftModal: React.FC<CreateShiftModalProps> = ({
       setErrorMessage(errorMsg);
     }
   }, [error]);
-
   // Обработчик для создания смены
   const handleCreateShift = () => {
     if (!scannedBarcode) {
@@ -67,7 +66,17 @@ export const CreateShiftModal: React.FC<CreateShiftModalProps> = ({
       return;
     }
 
-    createShift(scannedBarcode);
+    // Создаем объект смены с данными
+    const shiftData: CreateShiftDto = {
+      productId: scannedBarcode,
+      plannedCount: null,
+      factCount: null,
+      countInBox: null,
+      packing: false,
+      status: 'PLANNED',
+    };
+
+    createShift(shiftData);
   };
 
   return (
@@ -93,7 +102,8 @@ export const CreateShiftModal: React.FC<CreateShiftModalProps> = ({
             </div>
             <div className={styles.barcodeDescription}>
               <Text variant="body-1">
-                `Штрих-код продукции успешно отсканирован. Нажмите &#34Создать смену&#34 для продолжения.`
+                `Штрих-код продукции успешно отсканирован. Нажмите &#34Создать смену&#34 для
+                продолжения.`
               </Text>
             </div>
           </div>

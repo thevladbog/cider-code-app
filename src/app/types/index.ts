@@ -1,3 +1,30 @@
+import { IShiftFindMany, OperatorShiftDto } from '../api/generated';
+
+// Экспорт сгенерированных типов из OpenAPI
+export type {
+  BoxesCodeDataDto,
+  CreatedProductId,
+  CreateOperatorDto,
+  CreateProductDto,
+  CreateShiftDto,
+  IndividualCodeDataDto,
+  IOperatorFindMany,
+  IOperatorFindOne,
+  IProductFindMany,
+  IShiftFindOne,
+  LoginOperatorDto,
+  OperatorShiftDto,
+  PackCodesDto,
+  PackedCodesResponseDto,
+  SelectProductDto,
+  UpdateCodesStatusDto,
+  UpdateOperatorDto,
+  UpdateProductDto,
+  UpdateShiftDto,
+  WriteBoxesCodeDto,
+  WriteIndividualCodeDto,
+} from '../api/generated';
+
 // Типы для API Electron
 export interface ElectronAPI {
   // Сканер
@@ -144,7 +171,7 @@ export interface IProduct {
   modified: string;
 }
 
-// Перечисление статусов смены
+// Перечисление статусов смены (используем из сгенерированных типов)
 export enum ShiftStatus {
   PLANNED = 'PLANNED',
   PAUSED = 'PAUSED',
@@ -153,19 +180,8 @@ export enum ShiftStatus {
   CANCELED = 'CANCELED', // Отмененная
 }
 
-export interface IShiftScheme {
-  status: ShiftStatus;
-  id: string;
-  plannedDate: string;
-  product: IProduct;
-  plannedCount: number | null;
-  factCount: number | null;
-  packing: boolean;
-  countInBox: number | null;
-  operatorId: string | null;
-  created: string;
-  modified: string;
-}
+// Используем сгенерированный тип OperatorShiftDto для операторских смен (содержит product)
+export type IShiftScheme = OperatorShiftDto;
 
 // Типы для данных Datamatrix
 export interface DataMatrixData {
@@ -199,15 +215,8 @@ export interface PackagingInfo {
   lastPackageCode?: string; // Код последней созданной упаковки
 }
 
-// Информация о смене
-export interface Shift {
-  id?: string; // Идентификатор смены
-  result: IShiftScheme[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPage: number;
-}
+// Информация о смене (используем сгенерированный тип)
+export type Shift = IShiftFindMany;
 
 // Тип для ответа на запрос генерации SSCC
 export interface GenerateSSCCResponse {

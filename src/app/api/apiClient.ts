@@ -1,7 +1,15 @@
 import axios from 'axios';
+import { baseURL } from './config';
+import { OpenAPI } from './generated';
 
-// Базовый URL API (можно получить из переменной окружения)
-const baseURL = 'https://api.test.in.bottlecode.app:3035';
+// Функция для синхронизации токена из OpenAPI клиента в axios
+export const syncTokenFromOpenAPI = (): void => {
+  const token = typeof OpenAPI.TOKEN === 'string' ? OpenAPI.TOKEN : null;
+  if (token) {
+    setAuthToken(token);
+    console.log('Token synced from OpenAPI to axios client');
+  }
+};
 
 // Создаем инстанс axios с базовой конфигурацией
 const apiClient = axios.create({
@@ -22,9 +30,12 @@ export const setAuthToken = (token: string | null): void => {
   if (token) {
     // Устанавливаем токен для всех последующих запросов
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    // Также устанавливаем для OpenAPI клиента
+    OpenAPI.TOKEN = token;
   } else {
     // Удаляем заголовок авторизации при выходе
     delete apiClient.defaults.headers.common['Authorization'];
+    OpenAPI.TOKEN = undefined;
   }
 };
 
@@ -124,7 +135,38 @@ export const clearAuthToken = (): void => {
   setAuthToken(null);
 };
 
-// Загружаем токен при инициализации клиента
+// Вспомогательные функции для работы с хранилищем токенов OpenAPI
+export const loadOpenAPIToken = (): void => {
+  const storedToken = localStorage.getItem('openapi_token');
+  if (storedToken) {
+    try {
+      OpenAPI.TOKEN = storedToken;
+      setAuthToken(storedToken);
+      console.log('OpenAPI token loaded from localStorage');
+    } catch (e) {
+      console.error('Failed to load OpenAPI token:', e);
+      localStorage.removeItem('openapi_token');
+    }
+  }
+};
+
+export const saveOpenAPIToken = (token: string): void => {
+  localStorage.setItem('openapi_token', token);
+  OpenAPI.TOKEN = token;
+  setAuthToken(token);
+  console.log('OpenAPI token saved to localStorage');
+};
+
+export const clearOpenAPIToken = (): void => {
+  localStorage.removeItem('openapi_token');
+  OpenAPI.TOKEN = undefined;
+  setAuthToken(null);
+  console.log('OpenAPI token cleared');
+};
+
+// Загружаем токены при инициализации клиента
 loadAuthToken();
+loadOpenAPIToken();
+loadOpenAPIToken();
 
 export default apiClient;

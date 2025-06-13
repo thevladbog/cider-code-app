@@ -92,6 +92,11 @@
       color: variables.$gray-color;
     }
 
+    &Paused {
+      background-color: #f5f5f5;
+      color: variables.$warning-color;
+    }
+
     &Canceled {
       background-color: #fef2f2;
       color: variables.$danger-color;
