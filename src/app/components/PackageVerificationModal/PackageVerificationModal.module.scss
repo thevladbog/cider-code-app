@@ -1,0 +1,92 @@
+@use "sass:color";
+@use '../../styles/variables.scss';
+
+.packageVerificationModal {
+  padding: variables.$spacing-lg;
+  max-width: 500px;
+  
+  .title {
+    margin-bottom: variables.$spacing-lg;
+    text-align: center;
+  }
+  
+  .scanInstructions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: variables.$spacing-lg;
+    
+    .scanIcon {
+      font-size: 64px;
+      color: variables.$primary-color;
+      margin-bottom: variables.$spacing-md;
+    }
+    
+    .scanText {
+      text-align: center;
+      margin-bottom: variables.$spacing-sm;
+    }
+  }
+  
+  .packageInfo {
+    background-color: #f8fafc;
+    padding: variables.$spacing-md;
+    border-radius: variables.$border-radius-md;
+    margin-bottom: variables.$spacing-lg;
+    
+    .packageCode {
+      font-family: monospace;
+      font-size: 20px;
+      font-weight: 600;
+      padding: variables.$spacing-sm;
+      background-color: #fff;
+      border: 1px solid variables.$border-color;
+      text-align: center;
+      margin-bottom: variables.$spacing-md;
+    }
+    
+    .packageDetails {
+      display: flex;
+      justify-content: space-between;
+      
+      .packageDetail {
+        text-align: center;
+        
+        .detailValue {
+          font-weight: 500;
+        }
+      }
+    }
+  }
+  
+  .scanResult {
+    margin-top: variables.$spacing-lg;
+    padding: variables.$spacing-md;
+    border-radius: variables.$border-radius-md;
+    
+    &Success {
+      background-color: #f0fdf4;
+      border: 1px solid color.adjust(variables.$success-color, $lightness: 30%);
+    }
+    
+    &Error {
+      background-color: #fef2f2;
+      border: 1px solid color.adjust(variables.$danger-color, $lightness: 30%);
+    }
+  }
+  
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    gap: variables.$spacing-md;
+    margin-top: variables.$spacing-lg;
+  }
+  
+  .loadingContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: variables.$spacing-xl 0;
+  }
+}

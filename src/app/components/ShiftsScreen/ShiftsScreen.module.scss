@@ -1,0 +1,79 @@
+@use '../../styles/variables.scss';
+
+.shiftsScreen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: variables.$spacing-lg;
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: variables.$spacing-lg;
+    
+    .title {
+      font-weight: 500;
+    }
+  }
+  
+  .gridContainer {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    
+    .gridHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: variables.$spacing-md;
+    }
+    
+    .shiftsGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: variables.$spacing-lg;
+      margin-bottom: variables.$spacing-xl;
+    }
+    
+    .noShifts {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: variables.$spacing-xl;
+      background-color: #f8fafc;
+      border-radius: variables.$border-radius-md;
+      text-align: center;
+      
+      .noShiftsIcon {
+        font-size: 64px;
+        color: variables.$gray-color;
+        margin-bottom: variables.$spacing-md;
+      }
+    }
+  }
+  
+  .loader {
+    display: flex;
+    justify-content: center;
+    padding: variables.$spacing-xl;
+  }
+  
+  .errorContainer {
+    padding: variables.$spacing-lg;
+    background-color: #fef2f2;
+    border-radius: variables.$border-radius-md;
+    margin-bottom: variables.$spacing-xl;
+    
+    .errorHeader {
+      display: flex;
+      align-items: center;
+      margin-bottom: variables.$spacing-md;
+    }
+    
+    .retryButton {
+      margin-top: variables.$spacing-md;
+    }
+  }
+}

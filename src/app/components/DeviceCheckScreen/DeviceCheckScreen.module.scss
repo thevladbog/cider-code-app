@@ -1,0 +1,43 @@
+@use "sass:color";
+@use '../../styles/variables.scss';
+
+.deviceCheckScreen {
+  background-color: #fff;
+  border-radius: variables.$border-radius-md;
+  box-shadow: variables.$box-shadow-sm;
+  padding: variables.$spacing-lg;
+  margin-bottom: variables.$spacing-lg;
+
+  &Header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: variables.$spacing-lg;
+  }
+  
+  .deviceList {
+    display: flex;
+    flex-direction: column;
+    gap: variables.$spacing-md;
+  }
+  
+  .statusSummary {
+    margin-top: variables.$spacing-lg;
+    padding: variables.$spacing-md;
+    border-radius: variables.$border-radius-md;
+    
+    &Success {
+      background-color: #f0fdf4;
+      border: 1px solid color.adjust(variables.$success-color, $lightness: 30%);
+    }
+    
+    &Pending {
+      background-color: #f0f9ff;
+      border: 1px solid color.adjust(variables.$primary-color, $lightness: 30%);
+    }
+  }
+  
+  .deviceConfig {
+    margin-top: variables.$spacing-md;
+  }
+}

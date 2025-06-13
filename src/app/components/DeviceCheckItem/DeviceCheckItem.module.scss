@@ -1,0 +1,73 @@
+@use "sass:color";
+@use '../../styles/variables.scss';
+
+.deviceItem {
+  display: flex;
+  align-items: center;
+  gap: variables.$spacing-md;
+  border-radius: variables.$border-radius-md;
+  border: 1px solid variables.$border-color;
+  padding: variables.$spacing-md;
+  margin-bottom: variables.$spacing-md;
+  transition: variables.$transition-normal;
+  
+  &Disconnected {
+    background-color: #f9f9f9;
+    border-color: variables.$border-color;
+  }
+  
+  &Connected {
+    background-color: #f0f9ff;
+    border-color: color.adjust(variables.$primary-color, $lightness: 30%);
+  }
+  
+  &Verified {
+    background-color: #f0fdf4;
+    border-color: color.adjust(variables.$success-color, $lightness: 30%);
+  }
+  
+  .deviceIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    color: variables.$gray-color;
+    
+    &Connected {
+      color: variables.$primary-color;
+    }
+    
+    &Verified {
+      color: variables.$success-color;
+    }
+  }
+  
+  .deviceInfo {
+    flex: 1;
+    
+    .deviceName {
+      font-weight: 500;
+      margin-bottom: variables.$spacing-xs;
+    }
+    
+    .deviceStatus {
+      font-size: 14px;
+      color: variables.$gray-color;
+      
+      &Connected {
+        color: variables.$primary-color;
+      }
+      
+      &Verified {
+        color: variables.$success-color;
+      }
+    }
+  }
+  
+  .deviceControls {
+    display: flex;
+    gap: variables.$spacing-sm;
+  }
+}

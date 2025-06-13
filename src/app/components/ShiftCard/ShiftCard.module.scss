@@ -1,0 +1,126 @@
+@use '../../styles/variables.scss';
+
+.shiftCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: variables.$border-radius-lg;
+  box-shadow: variables.$box-shadow-md;
+  overflow: hidden;
+  transition: variables.$transition-normal;
+  cursor: pointer;
+  height: 280px;
+  position: relative;
+  background-color: #fff;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: variables.$box-shadow-lg;
+  }
+
+  .imageContainer {
+    display: flex;
+    width: 100%;
+    height: 140px;
+    overflow: hidden;
+    justify-content: center;
+    align-items: center;
+
+    img {
+      height: 140px;
+      object-fit: cover;
+      transition: variables.$transition-normal;
+
+      &:hover {
+        transform: scale(1.05);
+      }
+    }
+  }
+
+  .content {
+    flex: 1;
+    padding: variables.$spacing-md;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .title {
+    font-weight: 600;
+    margin-bottom: variables.$spacing-xs;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .code {
+    margin-bottom: variables.$spacing-xs;
+    color: variables.$gray-color;
+    font-size: 14px;
+  }
+
+  .footer {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .date {
+    font-size: 14px;
+    color: variables.$gray-color;
+  }
+
+  .status {
+    padding: variables.$spacing-xs variables.$spacing-sm;
+    border-radius: variables.$border-radius-sm;
+    font-size: 12px;
+    font-weight: 500;
+
+    &Active {
+      background-color: #f0fdf4;
+      color: variables.$success-color;
+    }
+
+    &InProgress {
+      background-color: #f0f9ff;
+      color: variables.$primary-color;
+    }
+
+    &Archived {
+      background-color: #f5f5f5;
+      color: variables.$gray-color;
+    }
+
+    &Canceled {
+      background-color: #fef2f2;
+      color: variables.$danger-color;
+    }
+  }
+
+  .statusFlag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 40px 40px 0;
+
+    &Active {
+      border-color: transparent variables.$success-color transparent transparent;
+    }
+
+    &InProgress {
+      border-color: transparent variables.$primary-color transparent transparent;
+    }
+
+    &Archived {
+      border-color: transparent variables.$gray-color transparent transparent;
+    }
+
+    &Canceled {
+      border-color: transparent variables.$danger-color transparent transparent;
+    }
+  }
+}

@@ -1,0 +1,175 @@
+@use "sass:color";
+@use '../../styles/variables.scss';
+
+.scanningInterface {
+  margin-bottom: variables.$spacing-lg;
+  
+  .scanningCard {
+    padding: variables.$spacing-lg;
+    margin-bottom: variables.$spacing-lg;
+  }
+  
+  .scanningHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: variables.$spacing-lg;
+    
+    .scanControls {
+      display: flex;
+      gap: variables.$spacing-md;
+    }
+  }
+  
+  .scanningContent {
+    display: flex;
+    gap: variables.$spacing-lg;
+    
+    .lastScanContainer {
+      flex: 1;
+      background-color: #f8fafc;
+      border-radius: variables.$border-radius-md;
+      padding: variables.$spacing-lg;
+      
+      .lastScanResult {
+        margin-top: variables.$spacing-md;
+        border-radius: variables.$border-radius-md;
+        padding: variables.$spacing-lg;
+        
+        &Success {
+          background-color: #f0fdf4;
+          border: 1px solid color.adjust(variables.$success-color, $lightness: 30%);
+        }
+        
+        &Error {
+          background-color: #fef2f2;
+          border: 1px solid color.adjust(variables.$danger-color, $lightness: 30%);
+        }
+        
+        .codeValue {
+          margin-bottom: variables.$spacing-md;
+          font-family: monospace;
+        }
+        
+        .codeDetails {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: variables.$spacing-md;
+          
+          .codeDetail {
+            padding: variables.$spacing-sm;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: variables.$border-radius-sm;
+          }
+        }
+        
+        .scanMessage {
+          margin-top: variables.$spacing-md;
+          
+          .errorText {
+            color: variables.$danger-color;
+          }
+          
+          .successText {
+            color: variables.$success-color;
+          }
+        }
+      }
+      
+      .noScanYet {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: variables.$spacing-xl;
+        text-align: center;
+        
+        .scanIcon {
+          font-size: 48px;
+          color: variables.$gray-color;
+          margin-bottom: variables.$spacing-md;
+        }
+      }
+    }
+    
+    .scanningStats {
+      width: 250px;
+      
+      .statsCard {
+        background-color: #f0f9ff;
+        border-radius: variables.$border-radius-md;
+        padding: variables.$spacing-lg;
+        text-align: center;
+        
+        .statsValue {
+          font-size: 36px;
+          font-weight: 600;
+          margin-bottom: variables.$spacing-sm;
+          color: variables.$primary-color;
+        }
+      }
+    }
+  }
+  
+  .backupError {
+    background-color: #fef2f2;
+    border-radius: variables.$border-radius-md;
+    padding: variables.$spacing-md;
+    margin-bottom: variables.$spacing-lg;
+    
+    .errorText {
+      color: variables.$danger-color;
+    }
+  }
+  
+  .scanHistoryCard {
+    padding: variables.$spacing-lg;
+    
+    .scanHistoryTitle {
+      margin-bottom: variables.$spacing-md;
+    }
+    
+    .scanHistoryTable {
+      border: 1px solid variables.$border-color;
+      border-radius: variables.$border-radius-md;
+      overflow: hidden;
+      
+      .scanHistoryHeader {
+        display: grid;
+        grid-template-columns: 2fr 1fr 2fr 1fr;
+        background-color: #f8fafc;
+        border-bottom: 1px solid variables.$border-color;
+        
+        .scanHistoryCell {
+          padding: variables.$spacing-sm variables.$spacing-md;
+          font-weight: 500;
+        }
+      }
+      
+      .scanHistoryBody {
+        max-height: 300px;
+        overflow-y: auto;
+        
+        .scanHistoryRow {
+          display: grid;
+          grid-template-columns: 2fr 1fr 2fr 1fr;
+          border-bottom: 1px solid variables.$border-color;
+          
+          &:last-child {
+            border-bottom: none;
+          }
+          
+          &:nth-child(even) {
+            background-color: #f8fafc;
+          }
+          
+          .scanHistoryCell {
+            padding: variables.$spacing-sm variables.$spacing-md;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+  }
+}

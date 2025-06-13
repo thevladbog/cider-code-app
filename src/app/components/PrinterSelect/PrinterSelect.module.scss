@@ -1,0 +1,47 @@
+@use '../../styles/variables.scss';
+
+.printerSelect {
+  background-color: #fff;
+  border-radius: variables.$border-radius-md;
+  box-shadow: variables.$box-shadow-sm;
+  padding: variables.$spacing-lg;
+  margin-bottom: variables.$spacing-lg;
+
+  &Container {
+    display: flex;
+    flex-direction: column;
+    gap: variables.$spacing-md;
+  }
+  
+  .printerConfig {
+    display: flex;
+    flex-direction: column;
+    gap: variables.$spacing-md;
+  }
+
+  .printerOptions {
+    display: flex;
+    gap: variables.$spacing-md;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  
+  .networkOptions {
+    margin-top: variables.$spacing-md;
+    display: flex;
+    gap: variables.$spacing-md;
+    align-items: center;
+  }
+  
+  .statusMessage {
+    margin-top: variables.$spacing-md;
+    
+    &Success {
+      color: variables.$success-color;
+    }
+    
+    &Error {
+      color: variables.$danger-color;
+    }
+  }
+}

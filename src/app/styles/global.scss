@@ -1,0 +1,215 @@
+@use 'variables.scss';
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: variables.$light-color;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  &.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+// Стили для оверлея вспышки
+#flash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+}
+
+// Анимации для вспышек
+@keyframes flash-red {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(220, 38, 38, 0.3);
+  }
+}
+
+@keyframes flash-green {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(22, 163, 74, 0.3);
+  }
+}
+
+@keyframes flash-orange {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(234, 88, 12, 0.3);
+  }
+}
+
+.flash-red {
+  animation: flash-red 0.3s ease-in-out 2;
+}
+
+.flash-green {
+  animation: flash-green 0.3s ease-in-out 1;
+}
+
+.flash-orange {
+  animation: flash-orange 0.3s ease-in-out 2;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,200;0,300;0,400;0,600;0,700;0,900;1,200;1,300;1,400;1,600;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
+
+.g-root_theme_light {
+  --g-border-radius-xs: 10px;
+  --g-border-radius-s: 12px;
+  --g-border-radius-m: 14px;
+  --g-border-radius-l: 18px;
+  --g-border-radius-xl: 22px;
+
+  --g-font-family-sans: 'Titillium Web', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+  --g-font-family-monospace:
+    'IBM Plex Mono', 'Menlo', 'Monaco', 'Consolas', 'Ubuntu Mono', 'Liberation Mono',
+    'DejaVu Sans Mono', 'Courier New', 'Courier', monospace;
+
+  --g-color-private-brand-50: rgba(71, 117, 255, 0.1);
+  --g-color-private-brand-100: rgba(71, 117, 255, 0.15);
+  --g-color-private-brand-150: rgba(71, 117, 255, 0.2);
+  --g-color-private-brand-200: rgba(71, 117, 255, 0.3);
+  --g-color-private-brand-250: rgba(71, 117, 255, 0.4);
+  --g-color-private-brand-300: rgba(71, 117, 255, 0.5);
+  --g-color-private-brand-350: rgba(71, 117, 255, 0.6);
+  --g-color-private-brand-400: rgba(71, 117, 255, 0.7);
+  --g-color-private-brand-450: rgba(71, 117, 255, 0.8);
+  --g-color-private-brand-500: rgba(71, 117, 255, 0.9);
+  --g-color-private-brand-550-solid: rgb(71, 117, 255);
+  --g-color-private-brand-1000-solid: rgb(40, 42, 67);
+  --g-color-private-brand-950-solid: rgb(41, 47, 78);
+  --g-color-private-brand-900-solid: rgb(45, 55, 100);
+  --g-color-private-brand-850-solid: rgb(49, 64, 122);
+  --g-color-private-brand-800-solid: rgb(53, 73, 145);
+  --g-color-private-brand-750-solid: rgb(56, 82, 167);
+  --g-color-private-brand-700-solid: rgb(60, 91, 189);
+  --g-color-private-brand-650-solid: rgb(64, 99, 211);
+  --g-color-private-brand-600-solid: rgb(67, 108, 233);
+  --g-color-private-brand-500-solid: rgb(89, 131, 255);
+  --g-color-private-brand-450-solid: rgb(108, 145, 255);
+  --g-color-private-brand-400-solid: rgb(126, 158, 255);
+  --g-color-private-brand-350-solid: rgb(145, 172, 255);
+  --g-color-private-brand-300-solid: rgb(163, 186, 255);
+  --g-color-private-brand-250-solid: rgb(181, 200, 255);
+  --g-color-private-brand-200-solid: rgb(200, 214, 255);
+  --g-color-private-brand-150-solid: rgb(218, 227, 255);
+  --g-color-private-brand-100-solid: rgb(227, 234, 255);
+  --g-color-private-brand-50-solid: rgb(237, 241, 255);
+
+  --g-color-base-brand: #4775ff;
+  --g-color-base-background: rgb(255, 255, 255);
+  --g-color-base-brand-hover: var(--g-color-private-brand-600-solid);
+  --g-color-base-selection: var(--g-color-private-brand-200);
+  --g-color-base-selection-hover: var(--g-color-private-brand-300);
+  --g-color-line-brand: var(--g-color-private-brand-600-solid);
+  --g-color-text-brand: var(--g-color-private-brand-700-solid);
+  --g-color-text-brand-heavy: var(--g-color-private-brand-700-solid);
+  --g-color-text-brand-contrast: rgb(255, 255, 255);
+  --g-color-text-link: var(--g-color-private-brand-600-solid);
+  --g-color-text-link-hover: var(--g-color-private-brand-800-solid);
+  --g-color-text-link-visited: var(--g-color-private-purple-550-solid);
+  --g-color-text-link-visited-hover: var(--g-color-private-purple-800-solid);
+}
+
+.g-root_theme_dark {
+  --g-border-radius-xs: 10px;
+  --g-border-radius-s: 12px;
+  --g-border-radius-m: 14px;
+  --g-border-radius-l: 18px;
+  --g-border-radius-xl: 22px;
+
+  --g-font-family-sans: 'Titillium Web', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+  --g-font-family-monospace:
+    'IBM Plex Mono', 'Menlo', 'Monaco', 'Consolas', 'Ubuntu Mono', 'Liberation Mono',
+    'DejaVu Sans Mono', 'Courier New', 'Courier', monospace;
+
+  --g-color-private-brand-50: rgba(71, 117, 255, 0.1);
+  --g-color-private-brand-100: rgba(71, 117, 255, 0.15);
+  --g-color-private-brand-150: rgba(71, 117, 255, 0.2);
+  --g-color-private-brand-200: rgba(71, 117, 255, 0.3);
+  --g-color-private-brand-250: rgba(71, 117, 255, 0.4);
+  --g-color-private-brand-300: rgba(71, 117, 255, 0.5);
+  --g-color-private-brand-350: rgba(71, 117, 255, 0.6);
+  --g-color-private-brand-400: rgba(71, 117, 255, 0.7);
+  --g-color-private-brand-450: rgba(71, 117, 255, 0.8);
+  --g-color-private-brand-500: rgba(71, 117, 255, 0.9);
+  --g-color-private-brand-550-solid: rgb(71, 117, 255);
+  --g-color-private-brand-1000-solid: rgb(227, 234, 255);
+  --g-color-private-brand-950-solid: rgb(218, 227, 255);
+  --g-color-private-brand-900-solid: rgb(200, 214, 255);
+  --g-color-private-brand-850-solid: rgb(181, 200, 255);
+  --g-color-private-brand-800-solid: rgb(163, 186, 255);
+  --g-color-private-brand-750-solid: rgb(145, 172, 255);
+  --g-color-private-brand-700-solid: rgb(126, 158, 255);
+  --g-color-private-brand-650-solid: rgb(108, 145, 255);
+  --g-color-private-brand-600-solid: rgb(89, 131, 255);
+  --g-color-private-brand-500-solid: rgb(67, 108, 233);
+  --g-color-private-brand-450-solid: rgb(64, 99, 211);
+  --g-color-private-brand-400-solid: rgb(60, 91, 189);
+  --g-color-private-brand-350-solid: rgb(56, 82, 167);
+  --g-color-private-brand-300-solid: rgb(53, 73, 145);
+  --g-color-private-brand-250-solid: rgb(49, 64, 122);
+  --g-color-private-brand-200-solid: rgb(45, 55, 100);
+  --g-color-private-brand-150-solid: rgb(41, 47, 78);
+  --g-color-private-brand-100-solid: rgb(40, 42, 67);
+  --g-color-private-brand-50-solid: rgb(38, 38, 56);
+
+  --g-color-base-brand: #4775ff;
+  --g-color-base-background: rgb(34, 29, 34);
+  --g-color-base-brand-hover: var(--g-color-private-brand-650-solid);
+  --g-color-base-selection: var(--g-color-private-brand-150);
+  --g-color-base-selection-hover: var(--g-color-private-brand-200);
+  --g-color-line-brand: var(--g-color-private-brand-600-solid);
+  --g-color-text-brand: var(--g-color-private-brand-600-solid);
+  --g-color-text-brand-heavy: var(--g-color-private-brand-700-solid);
+  --g-color-text-brand-contrast: rgb(255, 255, 255);
+  --g-color-text-link: var(--g-color-private-brand-550-solid);
+  --g-color-text-link-hover: var(--g-color-private-brand-700-solid);
+  --g-color-text-link-visited: var(--g-color-private-purple-700-solid);
+  --g-color-text-link-visited-hover: var(--g-color-private-purple-850-solid);
+}

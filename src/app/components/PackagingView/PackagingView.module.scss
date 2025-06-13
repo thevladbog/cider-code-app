@@ -1,0 +1,98 @@
+@use '../../styles/variables.scss';
+
+.packagingView {
+  padding: variables.$spacing-lg;
+  
+  .packagingCard {
+    margin-bottom: variables.$spacing-lg;
+    
+    .packagingHeader {
+      margin-bottom: variables.$spacing-lg;
+    }
+    
+    .progressContainer {
+      display: flex;
+      flex-direction: column;
+      gap: variables.$spacing-md;
+      
+      .progressInfo {
+        display: flex;
+        flex-direction: column;
+        gap: variables.$spacing-sm;
+        
+        .progressText {
+          text-align: center;
+        }
+      }
+    }
+    
+    .errorText {
+      color: variables.$danger-color;
+      margin-top: variables.$spacing-sm;
+    }
+  }
+  
+  .packagesCard {
+    .packagesTitle {
+      margin-bottom: variables.$spacing-md;
+    }
+    
+    .packagesList {
+      display: flex;
+      flex-direction: column;
+      gap: variables.$spacing-sm;
+      
+      .packageItem {
+        display: flex;
+        align-items: center;
+        padding: variables.$spacing-md;
+        border: 1px solid variables.$border-color;
+        border-radius: variables.$border-radius-sm;
+        
+        &:nth-child(even) {
+          background-color: #f8fafc;
+        }
+        
+        .packageNumber {
+          width: 40px;
+          text-align: center;
+        }
+        
+        .packageSSCC {
+          flex: 1;
+          
+          .packageSSCCValue {
+            font-family: monospace;
+            font-weight: 500;
+          }
+          
+          .packageTimestamp {
+            color: variables.$gray-color;
+          }
+        }
+        
+        .packageItems {
+          padding: 0 variables.$spacing-md;
+        }
+        
+        .packageStatus {
+          padding-left: variables.$spacing-md;
+          
+          .verifiedStatus {
+            background-color: #f0fdf4;
+            color: variables.$success-color;
+            padding: variables.$spacing-xs variables.$spacing-sm;
+            border-radius: variables.$border-radius-sm;
+          }
+          
+          .unverifiedStatus {
+            background-color: #fef2f2;
+            color: variables.$danger-color;
+            padding: variables.$spacing-xs variables.$spacing-sm;
+            border-radius: variables.$border-radius-sm;
+          }
+        }
+      }
+    }
+  }
+}

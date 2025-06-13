@@ -1,0 +1,36 @@
+@use "sass:color";
+@use '../../styles/variables.scss';
+
+.barcodeModal {
+  padding: variables.$spacing-lg;
+  
+  .barcodeImage {
+    max-width: 300px;
+    margin: variables.$spacing-lg auto;
+  }
+  
+  .barcodeValue {
+    font-size: 18px;
+    background-color: #f5f5f5;
+    padding: variables.$spacing-sm variables.$spacing-md;
+    border-radius: variables.$border-radius-sm;
+    display: inline-block;
+    margin: variables.$spacing-md 0;
+  }
+  
+  .scanResult {
+    margin-top: variables.$spacing-lg;
+    padding: variables.$spacing-md;
+    border-radius: variables.$border-radius-md;
+    
+    &Success {
+      background-color: #f0fdf4;
+      border: 1px solid color.adjust(variables.$success-color, $lightness: 30%);
+    }
+    
+    &Error {
+      background-color: #fef2f2;
+      border: 1px solid color.adjust(variables.$danger-color, $lightness: 30%);
+    }
+  }
+}
