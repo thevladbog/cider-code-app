@@ -1,5 +1,9 @@
 import { packCodes, verifyPackage } from '../api/queries';
 import { DataMatrixData, IShiftScheme, PackageWithSSCC } from '../types';
+import { compareSSCCCodes } from '../utils/datamatrix';
+
+// Импорт функций для генерации этикеток
+const { createSSCCLabelData, generateSSCCLabel } = require('../../printer');
 
 // Хранение упаковочных кодов в памяти
 interface PackagingCache {
@@ -117,11 +121,8 @@ export async function verifySSCCCode(
   expectedSSCC: string,
   operatorId?: string
 ): Promise<boolean> {
-  // Нормализуем коды перед сравнением (удаляем пробелы и т.д.)
-  const normalizedScanned = scannedCode.trim().toUpperCase();
-  const normalizedExpected = expectedSSCC.trim().toUpperCase();
-
-  const isMatch = normalizedScanned === normalizedExpected;
+  // Используем новую функцию сравнения с поддержкой нормализации
+  const isMatch = compareSSCCCodes(scannedCode, expectedSSCC);
 
   if (isMatch) {
     try {
@@ -138,6 +139,7 @@ export async function verifySSCCCode(
       }
 
       // Обновляем локальные данные
+      const normalizedExpected = expectedSSCC.trim().toUpperCase();
       const packageIndex = packagingCache[shiftId]?.packages.findIndex(
         p => p.sscc.toUpperCase() === normalizedExpected
       );
@@ -220,29 +222,11 @@ export function preparePackageLabelZpl(
   sscc: string,
   productCount: number
 ): string {
-  // Получаем шаблон ZPL
-  const zplTemplate = ''; //shift.packaging.template.zplCode;
+  // Создаем данные для этикетки с правильным форматированием
+  const labelData = createSSCCLabelData(shift, sscc, productCount);
 
-  // Текущая дата в формате DD.MM.YYYY
-  const currentDate = new Date().toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-
-  // Переменные для подстановки в шаблон
-  const variables: Record<string, string> = {
-    SSCC: sscc,
-    PRODUCT_NAME: shift.product.fullName,
-    PRODUCT_CODE: shift.product.gtin,
-    DATE: currentDate,
-    QUANTITY: productCount.toString(),
-    BATCH: 'N/A',
-    OPERATOR: shift.operatorId || 'Неизвестно',
-  };
-
-  // Обрабатываем шаблон
-  return processZplTemplate(zplTemplate, variables);
+  // Генерируем ZPL код
+  return generateSSCCLabel(labelData);
 }
 
 /**

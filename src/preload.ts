@@ -6,48 +6,52 @@ import { ElectronAPI } from './types'; // Импортируем типы
 
 // Экспортируем API, которое будет доступно в React приложении
 contextBridge.exposeInMainWorld('electronAPI', {
-    // Методы для работы с COM-портами и сканером
-    listSerialPorts: () => ipcRenderer.invoke('list-serial-ports'),
-    connectToPort: (port: string) => ipcRenderer.invoke('connect-to-port', port),
-    getSavedPort: () => ipcRenderer.invoke('get-saved-port'),
+  // Методы для работы с COM-портами и сканером
+  listSerialPorts: () => ipcRenderer.invoke('list-serial-ports'),
+  connectToPort: (port: string) => ipcRenderer.invoke('connect-to-port', port),
+  getSavedPort: () => ipcRenderer.invoke('get-saved-port'),
 
-    // Обработка событий сканирования
-    onBarcodeScanned: (callback: (barcode: string) => void) => {
-        /* eslint-disable */
-        const listener = (_: any, barcode: string) => callback(barcode);
-        ipcRenderer.on('barcode-data', listener);
-        return () => {
-            ipcRenderer.removeListener('barcode-data', listener);
-        };
-    },
-
-    // Методы для работы с принтером
-    listPrinters: () => ipcRenderer.invoke('list-printers'),
-    listPrinterSerialPorts: () => ipcRenderer.invoke('list-printer-serial-ports'),
-    connectToPrinter: (printer: string, isNetwork?: boolean, address?: string) =>
-        ipcRenderer.invoke('connect-to-printer', printer, isNetwork, address),
-    getSavedPrinter: () => ipcRenderer.invoke('get-saved-printer'),
-    printBarcode: (barcode: string) => ipcRenderer.invoke('print-barcode', barcode),
-    printZpl: (zplCode: string) => ipcRenderer.invoke('print-zpl', zplCode),
-
-    // Методы для работы с бэкапами
+  // Обработка событий сканирования
+  onBarcodeScanned: (callback: (barcode: string) => void) => {
     /* eslint-disable */
-    saveCodeToBackup: (
-        code: string,
-        type: 'product' | 'package',
-        shiftId: string,
-        additionalData?: any
-    ) => ipcRenderer.invoke('save-code-to-backup', code, type, shiftId, additionalData),
+    const listener = (_: any, barcode: string) => callback(barcode);
+    ipcRenderer.on('barcode-data', listener);
+    return () => {
+      ipcRenderer.removeListener('barcode-data', listener);
+    };
+  },
 
-    getBackupCodesByShift: (shiftId: string) =>
-        ipcRenderer.invoke('get-backup-codes-by-shift', shiftId),
+  // Методы для работы с принтером
+  listPrinters: () => ipcRenderer.invoke('list-printers'),
+  listPrinterSerialPorts: () => ipcRenderer.invoke('list-printer-serial-ports'),
+  connectToPrinter: (printer: string, isNetwork?: boolean, address?: string) =>
+    ipcRenderer.invoke('connect-to-printer', printer, isNetwork, address),
+  getSavedPrinter: () => ipcRenderer.invoke('get-saved-printer'),
+  printBarcode: (barcode: string) => ipcRenderer.invoke('print-barcode', barcode),
+  printZpl: (zplCode: string) => ipcRenderer.invoke('print-zpl', zplCode),
+  printSSCCLabel: (sscc: string, productName?: string) =>
+    ipcRenderer.invoke('print-sscc-label', sscc, productName),
+  printSSCCLabelWithData: (data: any, labelTemplate?: string) =>
+    ipcRenderer.invoke('print-sscc-label-with-data', data, labelTemplate),
 
-    getAllBackupFiles: () => ipcRenderer.invoke('get-all-backup-files'),
+  // Методы для работы с бэкапами
+  /* eslint-disable */
+  saveCodeToBackup: (
+    code: string,
+    type: 'product' | 'package',
+    shiftId: string,
+    additionalData?: any
+  ) => ipcRenderer.invoke('save-code-to-backup', code, type, shiftId, additionalData),
 
-    exportBackup: (shiftId: string) => ipcRenderer.invoke('export-backup', shiftId),
+  getBackupCodesByShift: (shiftId: string) =>
+    ipcRenderer.invoke('get-backup-codes-by-shift', shiftId),
 
-    // Методы интерфейса
-    toggleFullscreen: () => ipcRenderer.invoke('toggle-fullscreen'),
-    quitApp: () => ipcRenderer.invoke('quit-app'),
-    playSound: (soundName: string) => ipcRenderer.invoke('play-sound', soundName),
+  getAllBackupFiles: () => ipcRenderer.invoke('get-all-backup-files'),
+
+  exportBackup: (shiftId: string) => ipcRenderer.invoke('export-backup', shiftId),
+
+  // Методы интерфейса
+  toggleFullscreen: () => ipcRenderer.invoke('toggle-fullscreen'),
+  quitApp: () => ipcRenderer.invoke('quit-app'),
+  playSound: (soundName: string) => ipcRenderer.invoke('play-sound', soundName),
 } as ElectronAPI); // Приводим к типу ElectronAPI

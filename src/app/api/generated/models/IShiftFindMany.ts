@@ -9,5 +9,6 @@ export type IShiftFindMany = {
     page: number;
     limit: number;
     totalPage: number;
+    labelTemplate?: string;
 };
 

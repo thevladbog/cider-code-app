@@ -1,5 +1,8 @@
 import { IShiftFindMany, OperatorShiftDto } from '../api/generated';
 
+// Import SSCCLabelData type
+import type { SSCCLabelData } from '../../printer';
+
 // Экспорт сгенерированных типов из OpenAPI
 export type {
   BoxesCodeDataDto,
@@ -32,7 +35,6 @@ export interface ElectronAPI {
   connectToPort: (port: string) => Promise<{ success: boolean; error?: string }>;
   getSavedPort: () => Promise<string | null>;
   onBarcodeScanned: (callback: (barcode: string) => void) => () => void;
-
   // Принтер
   listPrinters: () => Promise<PrinterInfo[]>;
   // Обновляем тип возвращаемого значения для корректности
@@ -46,6 +48,14 @@ export interface ElectronAPI {
   getSavedPrinter: () => Promise<PrinterSettings | null>;
   printBarcode: (barcode: string) => Promise<{ success: boolean; error?: string }>;
   printZpl: (zplCode: string) => Promise<{ success: boolean; error?: string }>;
+  printSSCCLabel: (
+    sscc: string,
+    productName?: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  printSSCCLabelWithData: (
+    data: SSCCLabelData,
+    labelTemplate?: string
+  ) => Promise<{ success: boolean; error?: string }>;
 
   // Бэкап
   /* eslint-disable */
@@ -233,11 +243,4 @@ export interface PackageWithSSCC {
   timestamp: number; // Временная метка создания
   verifiedBy?: string; // Кто проверил (ID оператора)
   verifiedAt?: number; // Когда проверено
-}
-
-// Для TypeScript - объявление глобальных переменных window
-declare global {
-  interface Window {
-    electronAPI: ElectronAPI;
-  }
 }

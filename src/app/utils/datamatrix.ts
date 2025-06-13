@@ -13,35 +13,66 @@ export function parseDataMatrix(dataMatrixCode: string): DataMatrixData | null {
     // Например, ]d2 или просто опускать его. Мы нормализуем входные данные.
     const cleanCode = dataMatrixCode.trim();
 
-    // Регулярное выражение для нашего формата
-    // Идентификатор "01" + 14 цифр + идентификатор "21" + 1 цифра + 6 символов + (опционально: FN1) + "93" + 4 символа
-    /* eslint-disable */
-    const dataMatrixRegex =
-      /^01(\d{14})21(\d{1})(.{6})(?:[\x1D\u001D\{GS\}\|\^\s_,.;:-]|(?=93))93(.{4})$/i;
+    console.log('Parsing DataMatrix code:', { original: dataMatrixCode, clean: cleanCode });
 
-    let match = cleanCode.match(dataMatrixRegex);
+    // Пробуем разные варианты парсинга
+    let match: RegExpMatchArray | null = null;
 
-    // Альтернативный regex для более гибкого поиска
-    const flexibleRegex = /^01(\d{14})21(\d{1})(.{6}).*?93(.{4})/i;
+    // Основной формат: 01 + 14 цифр + 21 + 1 цифра + 6 символов + 93 + 4 символа
+    const mainRegex = /^01(\d{14})21(\d{1})(.{6})93(.{4})$/;
+    match = cleanCode.match(mainRegex);
 
-    console.log({ dataMatrixCode, cleanCode, match });
+    if (match) {
+      console.log('Matched with main regex:', match);
+    } else {
+      // Альтернативный формат с возможным FN1 между серийным номером и кодом проверки
+      // eslint-disable-next-line no-control-regex
+      const fnRegex = /^01(\d{14})21(\d{1})(.{6})[\x1D\u001D]?93(.{4})$/;
+      match = cleanCode.match(fnRegex);
 
-    if (!match) {
-      match = cleanCode.match(flexibleRegex);
+      if (match) {
+        console.log('Matched with FN1 regex:', match);
+      } else {
+        // Более гибкий поиск с нежадным квантификатором
+        const flexibleRegex = /^01(\d{14})21(\d{1})(.{6}).*?93(.{4})$/;
+        match = cleanCode.match(flexibleRegex);
 
-      if (!match) {
-        console.error('Invalid DataMatrix format', cleanCode);
-        return null;
+        if (match) {
+          console.log('Matched with flexible regex:', match);
+        }
       }
     }
 
-    return {
+    if (!match) {
+      console.error(
+        'Invalid DataMatrix format. Expected: 01XXXXXXXXXXXXXXXX21YZZZZZZZ93WWWW, got:',
+        cleanCode
+      );
+
+      // Попробуем найти части по отдельности для диагностики
+      const gtinMatch = cleanCode.match(/^01(\d{14})/);
+      const serialMatch = cleanCode.match(/21(\d{1})(.{6})/);
+      const verificationMatch = cleanCode.match(/93(.{4})/);
+
+      console.log('Diagnostic matches:', {
+        gtin: gtinMatch?.[1],
+        serial: serialMatch ? { countryCode: serialMatch[1], serialNumber: serialMatch[2] } : null,
+        verification: verificationMatch?.[1],
+      });
+
+      return null;
+    }
+
+    const result = {
       gtin: match[1], // 14 цифр после "01"
       countryCode: match[2], // 1 цифра после "21"
       serialNumber: match[3], // 6 символов после кода страны
       verificationCode: match[4], // 4 символа после "93"
-      rawData: dataMatrixCode,
+      rawData: dataMatrixCode, // Сохраняем исходный код
     };
+
+    console.log('Successfully parsed DataMatrix:', result);
+    return result;
   } catch (error) {
     console.error('Error parsing DataMatrix code:', error);
     return null;
@@ -149,4 +180,88 @@ export function isValidSSCC(sscc: string): boolean {
 
   const checkDigit = (10 - (sum % 10)) % 10;
   return checkDigit === parseInt(cleanSSCC[17]);
+}
+
+/**
+ * Нормализует SSCC код, удаляя префиксы сканеров и служебные символы
+ *
+ * @param ssccCode - Отсканированный SSCC код
+ * @returns Нормализованный SSCC код
+ */
+export function normalizeSSCCCode(ssccCode: string): string {
+  try {
+    let cleanCode = ssccCode.trim();
+
+    console.log('Normalizing SSCC code:', { original: ssccCode, clean: cleanCode });
+
+    // Удаляем префикс ]C1 который добавляют некоторые сканеры для SSCC (Application Identifier 00)
+    if (cleanCode.startsWith(']C1')) {
+      cleanCode = cleanCode.substring(3);
+      console.log('Removed ]C1 prefix:', cleanCode);
+    }
+
+    // Удаляем другие возможные префиксы сканеров
+    if (cleanCode.startsWith(']d2')) {
+      cleanCode = cleanCode.substring(3);
+      console.log('Removed ]d2 prefix:', cleanCode);
+    } // Поддерживаем формат вида ]C100046800899000001977 - длинный SSCC с префиксом
+    // Сначала проверяем, есть ли корректный 18-значный SSCC в конце строки
+    const endSSCCMatch = cleanCode.match(/(\d{18})$/);
+    if (endSSCCMatch) {
+      cleanCode = endSSCCMatch[1];
+      console.log('Extracted 18-digit SSCC from end of code:', cleanCode);
+    } else {
+      // Если SSCC начинается с 00, то это правильный формат (Application Identifier 00)
+      if (cleanCode.startsWith('00') && cleanCode.length === 20) {
+        // Убираем AI и оставляем только 18-значный SSCC
+        cleanCode = cleanCode.substring(2);
+        console.log('Removed AI 00 prefix:', cleanCode);
+      } else {
+        // Удаляем все нецифровые символы
+        cleanCode = cleanCode.replace(/\D/g, '');
+
+        // Если получилось больше 18 цифр, берем последние 18
+        if (cleanCode.length > 18) {
+          cleanCode = cleanCode.slice(-18);
+          console.log('Took last 18 digits:', cleanCode);
+        }
+      }
+    }
+
+    // SSCC должен быть 18 цифр
+    if (cleanCode.length === 18) {
+      console.log('Successfully normalized SSCC:', cleanCode);
+      return cleanCode;
+    }
+
+    console.warn('Invalid SSCC length after normalization:', {
+      length: cleanCode.length,
+      code: cleanCode,
+    });
+
+    return cleanCode; // Возвращаем как есть для дальнейшей обработки
+  } catch (error) {
+    console.error('Error normalizing SSCC code:', error);
+    return ssccCode; // Возвращаем исходный код в случае ошибки
+  }
+}
+
+/**
+ * Проверяет соответствие двух SSCC кодов с учетом нормализации
+ *
+ * @param scannedSSCC - Отсканированный SSCC код
+ * @param expectedSSCC - Ожидаемый SSCC код
+ * @returns true если коды совпадают
+ */
+export function compareSSCCCodes(scannedSSCC: string, expectedSSCC: string): boolean {
+  const normalizedScanned = normalizeSSCCCode(scannedSSCC);
+  const normalizedExpected = normalizeSSCCCode(expectedSSCC);
+
+  console.log('Comparing SSCC codes:', {
+    scanned: { original: scannedSSCC, normalized: normalizedScanned },
+    expected: { original: expectedSSCC, normalized: normalizedExpected },
+    match: normalizedScanned === normalizedExpected,
+  });
+
+  return normalizedScanned === normalizedExpected;
 }

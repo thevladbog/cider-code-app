@@ -1,5 +1,5 @@
 import { Button, Modal, Spin, Text } from '@gravity-ui/uikit';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { verifySSCCCode } from '@/app/services/packagingService';
 import { IShiftScheme } from '@/app/types';
@@ -10,6 +10,7 @@ interface PackageVerificationModalProps {
   visible: boolean;
   onClose: () => void;
   onVerified: () => void;
+  onFinalizePacking?: () => Promise<void>; // Новый prop для финализации упаковки
   sscc: string;
   productCount: number;
   shift: IShiftScheme;
@@ -20,6 +21,7 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
   visible,
   onClose,
   onVerified,
+  onFinalizePacking,
   sscc,
   productCount,
   shift,
@@ -30,9 +32,11 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
   const [, setErrorMessage] = useState<string | null>(null);
   const [verifyingCode, setVerifyingCode] = useState(false);
 
+  // Используем ref для отслеживания состояния верификации, чтобы избежать зависимости в useEffect
+  const verifyingRef = useRef(false);
+
   // Extract complex expression to a variable for dependency array
   const operatorId = shift.operatorId ?? undefined;
-
   // Сбрасываем состояние при открытии/закрытии модального окна
   useEffect(() => {
     if (visible) {
@@ -40,26 +44,41 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
       setVerificationResult(null);
       setErrorMessage(null);
       setVerifyingCode(false);
+      verifyingRef.current = false;
     }
   }, [visible]);
 
-  // Подписываемся на события сканирования
-  useEffect(() => {
-    if (!visible || verifyingCode) return;
+  // Обработчик сканирования с использованием useCallback
+  const handleBarcodeScan = useCallback(
+    async (barcode: string) => {
+      // Предотвращаем повторное сканирование во время обработки
+      if (verifyingRef.current) return;
 
-    const unsubscribe = window.electronAPI.onBarcodeScanned(async barcode => {
       console.log('Scanned SSCC code:', barcode);
       setScannedCode(barcode);
       setVerifyingCode(true);
+      verifyingRef.current = true;
 
       try {
         // Проверяем, соответствует ли отсканированный код ожидаемому
         const isValid = await verifySSCCCode(shift.id, barcode, sscc, operatorId);
 
         setVerificationResult(isValid);
-
         if (isValid) {
-          // При успешной верификации автоматически закрываем модальное окно через 1.5 секунды
+          // При успешной верификации финализируем упаковку (если функция передана)
+          if (onFinalizePacking) {
+            try {
+              await onFinalizePacking();
+              console.log('Packaging finalized successfully');
+            } catch (error) {
+              console.error('Error finalizing packaging:', error);
+              setErrorMessage('Ошибка при финализации упаковки');
+              setVerificationResult(false);
+              return;
+            }
+          }
+
+          // Автоматически закрываем модальное окно через 1.5 секунды
           setTimeout(() => {
             onVerified();
           }, 1500);
@@ -72,13 +91,31 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
         setVerificationResult(false);
       } finally {
         setVerifyingCode(false);
+        verifyingRef.current = false;
       }
-    });
+    },
+    [shift.id, sscc, operatorId, onVerified, onFinalizePacking]
+  );
+
+  // Подписываемся на события сканирования
+  useEffect(() => {
+    if (!visible) return;
+
+    const unsubscribe = window.electronAPI.onBarcodeScanned(handleBarcodeScan);
 
     return () => {
       unsubscribe();
     };
-  }, [visible, sscc, shift.id, operatorId, onVerified, verifyingCode]);
+  }, [visible, handleBarcodeScan]);
+
+  // Обработчик сброса сканирования
+  const handleResetScan = useCallback(() => {
+    setScannedCode(null);
+    setVerificationResult(null);
+    setErrorMessage(null);
+    setVerifyingCode(false);
+    verifyingRef.current = false;
+  }, []);
 
   // Форматируем дату для отображения
   const formatDate = (date: Date): string => {
@@ -187,10 +224,9 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
             <div className={styles.actions}>
               <Button view="flat" onClick={onClose}>
                 Отмена
-              </Button>
-
+              </Button>{' '}
               {!verificationResult && scannedCode && (
-                <Button view="action" onClick={() => setScannedCode(null)}>
+                <Button view="action" onClick={handleResetScan}>
                   Повторить сканирование
                 </Button>
               )}

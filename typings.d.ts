@@ -1,4 +1,13 @@
-declare module '*.scss';
+import { ElectronAPI } from './src/app/types';
+
+declare module '*.scss' {
+  const content: { [className: string]: string };
+  export default content;
+}
+declare module '*.css' {
+  const content: { [className: string]: string };
+  export default content;
+}
 declare module '*.svg';
 
 declare global {
@@ -8,8 +17,12 @@ declare global {
 }
 
 // Типизация для Webpack Hot Module Replacement
-declare let module: {
-  hot?: {
-    accept(path?: string, callback?: () => void): void;
-  };
-};
+declare global {
+  namespace NodeJS {
+    interface Module {
+      hot?: {
+        accept(path?: string, callback?: () => void): void;
+      };
+    }
+  }
+}

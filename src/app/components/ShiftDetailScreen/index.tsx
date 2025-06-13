@@ -1,13 +1,14 @@
 // ShiftDetailScreen/index.tsx
 import { ArrowLeft, CircleXmark, Pause, Play, Printer, TrashBin } from '@gravity-ui/icons';
 import { Button, Card, Label, Spin, Switch, Table, Text } from '@gravity-ui/uikit';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useShift, useUpdateShiftStatus } from '@/app/api/queries';
-import { useScannerInShift } from '@/app/hooks/useScannerInShift';
+import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
 import { DataMatrixData, ShiftStatus } from '@/app/types';
 import { formatGtin, formatSSCC } from '@/app/utils';
+import { compareSSCCCodes } from '@/app/utils/datamatrix';
 
 import styles from './ShiftDetailScreen.module.scss';
 
@@ -17,79 +18,160 @@ export const ShiftDetailScreen: React.FC = () => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [errorIndex, setErrorIndex] = useState<number | null>(null);
   const [useCrates, setUseCrates] = useState(true);
-  const [currentBoxCodes, setCurrentBoxCodes] = useState<DataMatrixData[]>([]);
   const [pendingSSCC, setPendingSSCC] = useState<string | null>(null);
+  const [pendingItemCodes, setPendingItemCodes] = useState<string[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [printLock, setPrintLock] = useState(false);
-
-  // Ref для сканера в модальном окне
+  const [printLock, setPrintLock] = useState(false); // Ref для сканера в модальном окне
   const modalScannerRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const ssccCounterRef = useRef<number>(0);
+
+  // Refs для стабильных ссылок на функции (избежание бесконечных циклов)
+  const initializeShiftRef = useRef<(() => Promise<void>) | null>(null);
+  const speakMessageRef = useRef<((message: string) => void) | null>(null);
+
   const { data: shift, isLoading, error } = useShift(shiftId || null);
   const { mutate: updateStatus } = useUpdateShiftStatus();
+
+  // Функция для озвучивания сообщений
+  const speakMessage = useCallback((message: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = 'ru-RU';
+      utterance.rate = 1.2;
+      window.speechSynthesis.speak(utterance);
+    }
+  }, []);
+  // Настройка нового хука для работы с упаковкой
+  const {
+    scannedCodes,
+    scanMessage,
+    scanError,
+    currentBoxInfo,
+    resetScan,
+    initializeShiftForPacking,
+    confirmBoxPacking,
+  } = useScannerWithPacking({
+    shift: shift?.result || null,
+    enabled:
+      shift?.result?.status === 'INPROGRESS' && // Сканирование только при активной смене
+      !activeModal &&
+      !isPrinting, // Отключаем сканер при печати и в модальном окне
+    onScanSuccess: (data: DataMatrixData) => {
+      // Обрабатываем успешное сканирование
+      handleCodeScanned(data);
+    },
+    onScanError: (_message: string) => {
+      // Показываем ошибку сканирования - негативный сценарий, озвучиваем
+      setErrorIndex(scannedCodes.length);
+      setTimeout(() => setErrorIndex(null), 2000);
+      if (speakMessageRef.current) {
+        speakMessageRef.current('Ошибка сканирования');
+      }
+    },
+    onDuplicateScan: (_data: DataMatrixData) => {
+      // Обработка дубликата - негативный сценарий, озвучиваем
+      if (speakMessageRef.current) {
+        speakMessageRef.current('Дубликат');
+      }
+    },
+    onBoxReadyToPack: (currentSSCC: string, itemCodes: string[]) => {
+      // Короб готов к упаковке - печатаем этикетку и показываем модал верификации
+      handleBoxReadyToPack(currentSSCC, itemCodes);
+    },
+    onBoxPacked: (packedSSCC: string, nextSSCC: string) => {
+      // Короб окончательно упакован - только обновляем статистику
+      console.log(`Box packed: ${packedSSCC}, next: ${nextSSCC}`);
+    },
+    onSSCCInitialized: (sscc: string) => {
+      console.log('SSCC initialized for first box:', sscc);
+    },
+  });
+
+  // Обновляем refs при изменении функций
+  useEffect(() => {
+    initializeShiftRef.current = initializeShiftForPacking;
+    speakMessageRef.current = speakMessage;
+  });
 
   const [scanStats, setScanStats] = useState({
     totalScanned: 0,
     currentBoxScanned: 0,
     totalBoxes: 0,
     boxCapacity: 0,
-  });
-
-  // Получаем сохраненные коды по текущей смене при загрузке
+  }); // Получаем сохраненные коды по текущей смене при загрузке
   useEffect(() => {
-    if (shift?.result) {
-      // Инициализация данных из смены
-      const boxCapacity = shift.result.countInBox || 0;
-      const shouldUseCrates = shift.result.packing;
-      setUseCrates(shouldUseCrates);
+    const shiftResult = shift?.result;
+    if (!shiftResult) return;
 
-      // Здесь бы загрузить существующие сканы и упаковки
-      // Установка начальных значений
-      setScanStats({
-        totalScanned: 0, // Заменить на реальные данные
-        currentBoxScanned: 0, // Заменить на реальные данные
-        totalBoxes: 0, // Заменить на реальные данные
-        boxCapacity,
+    // Инициализация данных из смены
+    const boxCapacity = shiftResult.countInBox || 0;
+    const shouldUseCrates = shiftResult.packing;
+    setUseCrates(shouldUseCrates);
+
+    // Если используется упаковка, инициализируем SSCC для смены
+    if (shouldUseCrates && shiftResult.status === 'INPROGRESS' && initializeShiftRef.current) {
+      initializeShiftRef.current().catch((error: unknown) => {
+        console.error('Failed to initialize SSCC for shift:', error);
+        if (speakMessageRef.current) {
+          speakMessageRef.current('Ошибка инициализации упаковки');
+        }
       });
     }
-  }, [shift]);
 
-  // Функция для голосовых оповещений (только негативные сценарии)
-  const speakMessage = (message: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(message);
-      utterance.lang = 'ru-RU';
-      window.speechSynthesis.speak(utterance);
+    // Установка начальных значений
+    setScanStats({
+      totalScanned: 0, // Заменить на реальные данные
+      currentBoxScanned: 0, // Заменить на реальные данные
+      totalBoxes: 0, // Заменить на реальные данные
+      boxCapacity,
+    });
+  }, [shift?.result]);
+
+  // Обработчик успешной верификации SSCC
+  const handleSSCCVerificationSuccess = useCallback(async () => {
+    try {
+      if (!pendingSSCC || !pendingItemCodes.length) {
+        console.error('No pending SSCC or item codes for verification');
+        return;
+      }
+
+      console.log('SSCC verification successful, confirming box packing...');
+
+      // Подтверждаем упаковку через API
+      const nextSSCC = await confirmBoxPacking(pendingSSCC, pendingItemCodes);
+
+      // Очищаем ожидающие данные
+      setPendingSSCC(null);
+      setPendingItemCodes([]);
+      setActiveModal(null);
+      setIsPrinting(false);
+
+      // Увеличиваем счетчик коробов и очищаем текущий короб
+      setScanStats(prev => ({
+        ...prev,
+        totalBoxes: prev.totalBoxes + 1,
+        currentBoxScanned: 0,
+      }));
+
+      resetScan(); // Очищаем данные текущего скана через хук
+
+      if (speakMessageRef.current) {
+        speakMessageRef.current('Короб успешно упакован');
+      }
+
+      console.log('Box packing confirmed, next SSCC:', nextSSCC);
+    } catch (error) {
+      console.error('Error confirming box packing:', error);
+      if (speakMessageRef.current) {
+        speakMessageRef.current('Ошибка упаковки короба');
+      }
+
+      // При ошибке очищаем данные и закрываем модал
+      setPendingSSCC(null);
+      setPendingItemCodes([]);
+      setActiveModal(null);
+      setIsPrinting(false);
     }
-  };
-
-  // Обработчик успешного сканирования
-  const handleCodeScanned = (data: DataMatrixData) => {
-    setCurrentBoxCodes(prev => [...prev, data]);
-
-    // Считаем, сколько будет после добавления
-    const newCurrentBoxScanned = scanStats.currentBoxScanned + 1;
-    const boxFull =
-      useCrates &&
-      newCurrentBoxScanned >= scanStats.boxCapacity &&
-      scanStats.boxCapacity > 0 &&
-      !isPrinting &&
-      !printLock;
-
-    // Если короб заполнен — СТАВИМ printLock СРАЗУ!
-    if (boxFull) {
-      setPrintLock(true);
-      setTimeout(() => {
-        handleCloseBox();
-      }, 500);
-    }
-
-    setScanStats(prev => ({
-      ...prev,
-      currentBoxScanned: prev.currentBoxScanned + 1,
-      totalScanned: prev.totalScanned + 1,
-    }));
-  };
+  }, [pendingSSCC, pendingItemCodes, confirmBoxPacking, resetScan]);
 
   // Настройка сканера для модального окна
   useEffect(() => {
@@ -100,22 +182,14 @@ export const ShiftDetailScreen: React.FC = () => {
       modalScannerRef.current = {
         unsubscribe: window.electronAPI.onBarcodeScanned(barcode => {
           console.log('Modal scanner received barcode:', barcode);
-          if (barcode === pendingSSCC) {
-            // Успешная верификация
-            setPendingSSCC(null);
-            setActiveModal(null);
-            setIsPrinting(false); // Важно: снимаем блокировку
-
-            // Увеличиваем счетчик коробов и очищаем текущий короб
-            setScanStats(prev => ({
-              ...prev,
-              totalBoxes: prev.totalBoxes + 1,
-              currentBoxScanned: 0,
-            }));
-            setCurrentBoxCodes([]);
+          if (compareSSCCCodes(barcode, pendingSSCC)) {
+            // Успешная верификация - теперь отправляем запрос на бэкенд
+            handleSSCCVerificationSuccess();
           } else {
             // Неверный SSCC
-            speakMessage('Неверный код верификации');
+            if (speakMessageRef.current) {
+              speakMessageRef.current('Неверный код верификации');
+            }
           }
         }),
       };
@@ -126,53 +200,148 @@ export const ShiftDetailScreen: React.FC = () => {
           console.log('Unsubscribing modal scanner');
           modalScannerRef.current.unsubscribe();
           modalScannerRef.current = null;
-        }
-
-        // Если модальное окно закрывается без верификации, снимаем блокировку
+        } // Если модальное окно закрывается без верификации, снимаем блокировку
         if (pendingSSCC && activeModal === 'verification') {
           setIsPrinting(false);
+          setPendingSSCC(null);
+          setPendingItemCodes([]);
         }
       };
     }
-  }, [activeModal, pendingSSCC]); // Интеграция с хуком сканирования для основного интерфейса
-  const { scanMessage, scanError } = useScannerInShift({
-    shift: shift?.result || null,
-    enabled:
-      shift?.result.status === 'INPROGRESS' && // Сканирование только при активной смене
-      !activeModal &&
-      !isPrinting, // Отключаем сканер при печати и в модальном окне
-    onScanSuccess: data => {
-      // Обрабатываем успешное сканирование
-      handleCodeScanned(data);
-    },
-    onScanError: _message => {
-      // Показываем ошибку сканирования - негативный сценарий, озвучиваем
-      setErrorIndex(scanStats.currentBoxScanned);
-      setTimeout(() => setErrorIndex(null), 2000);
-      speakMessage('Ошибка сканирования');
-    },
-    onDuplicateScan: _data => {
-      // Обработка дубликата - негативный сценарий, озвучиваем
-      speakMessage('Дубликат');
-    },
-  });
+  }, [activeModal, pendingSSCC, resetScan, handleSSCCVerificationSuccess]);
+  // Обработчик упаковки короба от хука
+  const handleBoxPacked = useCallback(
+    async (packedSSCC: string, nextSSCC: string) => {
+      console.log('Box packed with SSCC:', packedSSCC, 'Next SSCC:', nextSSCC);
+      try {
+        // Проверяем, что у нас есть данные смены
+        if (!shift?.result) {
+          console.error('No shift data available for SSCC label');
+          if (speakMessageRef.current) {
+            speakMessageRef.current('Ошибка: нет данных смены');
+          }
+          return;
+        }
 
-  // Вспомогательная функция для создания SSCC
-  const createSSCC = async (shiftId: string): Promise<string> => {
-    // Инкрементируем счетчик для каждого нового SSCC
-    ssccCounterRef.current += 1;
+        // Вычисляем дату истечения срока годности
+        const plannedDate = new Date(shift.result.plannedDate);
+        const expirationDate = new Date(plannedDate);
+        expirationDate.setDate(plannedDate.getDate() + shift.result.product.expirationInDays); // Печатаем SSCC этикетку с полными данными
+        const printResult = await window.electronAPI.printSSCCLabelWithData({
+          ssccCode: packedSSCC,
+          shiftId: shift.result.id,
+          fullName: shift.result.product.fullName,
+          plannedDate: shift.result.plannedDate,
+          expiration: expirationDate.toISOString().split('T')[0], // Форматируем как YYYY-MM-DD
+          barcode: shift.result.product.gtin,
+          alcoholCode: shift.result.product.alcoholCode || '',
+          currentCountInBox: shift.result.countInBox || 0,
+          volume: shift.result.product.volume,
+          pictureUrl: shift.result.product.pictureUrl || '', // URL изображения продукции
+        });
 
-    const timestamp = Date.now();
-    const counter = ssccCounterRef.current;
-    const sscc = `SSCC${timestamp}_${counter}`;
+        if (printResult.success) {
+          console.log('Print successful, showing verification dialog');
+          setPendingSSCC(packedSSCC);
+          setActiveModal('verification');
+        } else {
+          console.error('Print failed:', printResult.error);
+          if (speakMessageRef.current) {
+            speakMessageRef.current('Ошибка печати этикетки');
+          }
+          setIsPrinting(false);
+          setPrintLock(false);
+        }
+      } catch (error) {
+        console.error('Error printing SSCC:', error);
+        if (speakMessageRef.current) {
+          speakMessageRef.current('Ошибка печати этикетки');
+        }
+        setIsPrinting(false);
+        setPrintLock(false);
+      }
+    },
+    [shift]
+  );
 
-    console.log(`GENERATED NEW SSCC: ${sscc} for shift ${shiftId} (counter: ${counter})`);
-    return sscc;
-  };
+  // Обработчик готовности коробки к упаковке (печать этикетки и показ модала)
+  const handleBoxReadyToPack = useCallback(
+    async (currentSSCC: string, itemCodes: string[]) => {
+      console.log('Box ready to pack with SSCC:', currentSSCC);
+      try {
+        // Проверяем, что у нас есть данные смены
+        if (!shift?.result) {
+          console.error('No shift data available for SSCC label');
+          if (speakMessageRef.current) {
+            speakMessageRef.current('Ошибка: нет данных смены');
+          }
+          return;
+        }
+
+        // Сохраняем данные для последующей упаковки
+        setPendingSSCC(currentSSCC);
+        setPendingItemCodes(itemCodes);
+
+        // Вычисляем дату истечения срока годности
+        const plannedDate = new Date(shift.result.plannedDate);
+        const expirationDate = new Date(plannedDate);
+        expirationDate.setDate(plannedDate.getDate() + shift.result.product.expirationInDays);
+
+        // Печатаем SSCC этикетку с полными данными
+        const printResult = await window.electronAPI.printSSCCLabelWithData({
+          ssccCode: currentSSCC,
+          shiftId: shift.result.id,
+          fullName: shift.result.product.fullName,
+          plannedDate: shift.result.plannedDate,
+          expiration: expirationDate.toISOString().split('T')[0], // Форматируем как YYYY-MM-DD
+          barcode: shift.result.product.gtin,
+          alcoholCode: shift.result.product.alcoholCode || '',
+          currentCountInBox: shift.result.countInBox || 0,
+          volume: shift.result.product.volume,
+          pictureUrl: shift.result.product.pictureUrl || '', // URL изображения продукции
+        });
+
+        if (printResult.success) {
+          console.log('Print successful, showing verification dialog');
+          setActiveModal('verification');
+        } else {
+          console.error('Print failed:', printResult.error);
+          if (speakMessageRef.current) {
+            speakMessageRef.current('Ошибка печати этикетки');
+          }
+          // Сбрасываем ожидающие данные при ошибке
+          setPendingSSCC(null);
+          setPendingItemCodes([]);
+        }
+      } catch (error) {
+        console.error('Error preparing box for packing:', error);
+        if (speakMessageRef.current) {
+          speakMessageRef.current('Ошибка печати этикетки');
+        }
+        // Сбрасываем ожидающие данные при ошибке
+        setPendingSSCC(null);
+        setPendingItemCodes([]);
+      }
+    },
+    [shift]
+  );
+
+  // Обработчик успешного сканирования (используется новым хуком)
+  const handleCodeScanned = useCallback(
+    (_data: DataMatrixData) => {
+      // Обновляем счетчики на основе данных от хука
+      setScanStats(prev => ({
+        ...prev,
+        currentBoxScanned: currentBoxInfo?.boxItemCount || 0,
+        totalScanned: prev.totalScanned + 1,
+      }));
+    },
+    [currentBoxInfo?.boxItemCount]
+  );
 
   // Обработчик удаления текущего короба
   const handleDeleteCurrentBox = () => {
-    if (scanStats.currentBoxScanned > 0) {
+    if ((currentBoxInfo?.boxItemCount || 0) > 0) {
       // Показать подтверждение
       setActiveModal('confirmDeleteBox');
     }
@@ -180,55 +349,46 @@ export const ShiftDetailScreen: React.FC = () => {
 
   // Фактическое удаление текущего короба
   const confirmDeleteCurrentBox = () => {
+    resetScan(); // Сбрасываем текущий скан через хук
     setScanStats(prev => ({
       ...prev,
-      totalScanned: prev.totalScanned - prev.currentBoxScanned,
+      totalScanned: prev.totalScanned - (currentBoxInfo?.boxItemCount || 0),
       currentBoxScanned: 0,
     }));
-    setCurrentBoxCodes([]);
     setActiveModal(null);
-  }; // Обработчик закрытия короба
-  const handleCloseBox = () => {
-    console.log('handleCloseBox called, isPrinting:', isPrinting);
+  };
 
-    if (isPrinting || printLock || scanStats.currentBoxScanned <= 0) {
+  // Обработчик ручного закрытия короба
+  const handleCloseBox = async () => {
+    console.log('handleCloseBox called manually');
+
+    if (isPrinting || printLock || (currentBoxInfo?.boxItemCount || 0) <= 0) {
       console.log('Cannot close box: already printing or box is empty');
       return;
     }
 
     setIsPrinting(true);
 
-    (async () => {
-      try {
-        const sscc = await createSSCC(shift?.result?.id || '');
-        console.log('Created SSCC:', sscc);
-
-        const printResult = await window.electronAPI.printBarcode(sscc);
-
-        if (printResult.success) {
-          console.log('Print successful, showing verification dialog');
-          setPendingSSCC(sscc);
-          setActiveModal('verification');
-        } else {
-          console.error('Print failed:', printResult.error);
-          speakMessage('Ошибка печати этикетки');
-          setIsPrinting(false);
-          setPrintLock(false); // Снимаем блокировку при ошибке
-        }
-      } catch (error) {
-        console.error('Error in handleCloseBox:', error);
-        speakMessage('Ошибка печати этикетки');
-        setIsPrinting(false);
-        setPrintLock(false); // Снимаем блокировку при ошибке
+    // В новой системе упаковка должна происходить автоматически через хук
+    // Здесь мы можем только принудительно закрыть короб, если нужно
+    try {
+      // Если используется режим упаковки и есть SSCC, можно попробовать упаковать
+      if (currentBoxInfo?.currentSSCC) {
+        await handleBoxPacked(currentBoxInfo.currentSSCC, currentBoxInfo.currentSSCC);
       }
-    })();
-
-    setPrintLock(false);
+    } catch (error) {
+      console.error('Error in manual box closing:', error);
+      if (speakMessageRef.current) {
+        speakMessageRef.current('Ошибка закрытия короба');
+      }
+      setIsPrinting(false);
+      setPrintLock(false);
+    }
   };
   // Обработчик завершения смены
   const handleFinishShift = () => {
     // Проверка, закрыт ли текущий короб
-    if (useCrates && scanStats.currentBoxScanned > 0) {
+    if (useCrates && (currentBoxInfo?.boxItemCount || 0) > 0) {
       setActiveModal('confirmFinishWithOpenBox');
       return;
     }
@@ -243,7 +403,9 @@ export const ShiftDetailScreen: React.FC = () => {
           },
           onError: error => {
             console.error('Failed to finish shift:', error);
-            speakMessage('Ошибка завершения смены');
+            if (speakMessageRef.current) {
+              speakMessageRef.current('Ошибка завершения смены');
+            }
           },
         }
       );
@@ -305,31 +467,38 @@ export const ShiftDetailScreen: React.FC = () => {
         },
         onError: error => {
           console.error('Failed to change shift status:', error);
-          speakMessage('Ошибка изменения статуса смены');
+          if (speakMessageRef.current) {
+            speakMessageRef.current('Ошибка изменения статуса смены');
+          }
         },
       }
     );
   };
-
   // Колонки для таблицы кодов
-  const columns = [
-    {
-      id: 'index',
-      name: '№',
-      width: 50,
-      render: (_: unknown, index: number) => index + 1,
-    },
-    {
-      id: 'gtin',
-      name: 'GTIN',
-      render: (item: DataMatrixData) => formatGtin(item.gtin),
-    },
-    {
-      id: 'serialNumber',
-      name: 'Серийный номер',
-      render: (item: DataMatrixData) => item.serialNumber,
-    },
-  ];
+  const columns = useMemo(
+    () => [
+      {
+        id: 'index',
+        name: '№',
+        width: 50,
+        render: (_: unknown, index: number) => index + 1,
+      },
+      {
+        id: 'gtin',
+        name: 'GTIN',
+        render: (item: DataMatrixData) => formatGtin(item.gtin),
+      },
+      {
+        id: 'serialNumber',
+        name: 'Серийный номер',
+        render: (item: DataMatrixData) => item.serialNumber,
+      },
+    ],
+    []
+  );
+
+  // Мемоизируем данные таблицы для предотвращения лишних рендеров
+  const tableData = useMemo(() => scannedCodes, [scannedCodes]);
 
   if (isLoading) {
     return (
@@ -406,9 +575,10 @@ export const ShiftDetailScreen: React.FC = () => {
         {/* Левая панель с большими счетчиками */}
         <div className={styles.countersPanel}>
           <div className={styles.mainCounterContainer}>
+            {' '}
             <div className={styles.mainCounter}>
               <Text variant="display-1" className={styles.bigCounter}>
-                {scanStats.currentBoxScanned}
+                {currentBoxInfo?.boxItemCount || 0}
                 <span className={styles.divider}>/</span>
                 <span className={styles.capacity}>{useCrates ? boxCapacity : '-'}</span>
               </Text>
@@ -420,10 +590,10 @@ export const ShiftDetailScreen: React.FC = () => {
 
           {/* Таблица с кодами текущего короба */}
           <div className={styles.currentBoxTable}>
-            <Text variant="subheader-2">Коды в текущем коробе:</Text>
+            <Text variant="subheader-2">Коды в текущем коробе:</Text>{' '}
             <div className={styles.tableContainer}>
               <Table
-                data={currentBoxCodes}
+                data={tableData}
                 columns={columns}
                 className={styles.codesTable}
                 emptyMessage="Нет отсканированных кодов"
@@ -456,11 +626,12 @@ export const ShiftDetailScreen: React.FC = () => {
               <div className={styles.boxVisualization}>
                 <Text variant="subheader-1">Текущий короб</Text>
                 <div className={styles.boxGrid}>
+                  {' '}
                   {Array.from({ length: boxCapacity || 1 }, (_, i) => (
                     <div
                       key={i}
                       className={`${styles.boxItem} 
-                        ${i < scanStats.currentBoxScanned ? styles.boxItemScanned : ''} 
+                        ${i < (currentBoxInfo?.boxItemCount || 0) ? styles.boxItemScanned : ''} 
                         ${i === errorIndex ? styles.boxItemError : ''}`}
                     />
                   ))}
@@ -469,10 +640,11 @@ export const ShiftDetailScreen: React.FC = () => {
 
               {/* Большая полоса прогресса */}
               <div className={styles.progressBar}>
+                {' '}
                 <div
                   className={styles.progressFill}
                   style={{
-                    width: `${boxCapacity > 0 ? (scanStats.currentBoxScanned / boxCapacity) * 100 : 0}%`,
+                    width: `${boxCapacity > 0 ? ((currentBoxInfo?.boxItemCount || 0) / boxCapacity) * 100 : 0}%`,
                   }}
                 />
               </div>
@@ -483,16 +655,16 @@ export const ShiftDetailScreen: React.FC = () => {
           <div className={styles.actionButtons}>
             {useCrates && (
               <>
+                {' '}
                 <Button
                   view="normal"
                   size="xl"
                   onClick={handleDeleteCurrentBox}
-                  disabled={scanStats.currentBoxScanned === 0 || isPrinting}
+                  disabled={(currentBoxInfo?.boxItemCount || 0) === 0 || isPrinting}
                   className={styles.actionButton}
                 >
                   <TrashBin /> Удалить текущий короб
                 </Button>
-
                 <Button
                   view="normal"
                   size="xl"
@@ -501,13 +673,12 @@ export const ShiftDetailScreen: React.FC = () => {
                   className={styles.actionButton}
                 >
                   <TrashBin /> Удалить короб по коду
-                </Button>
-
+                </Button>{' '}
                 <Button
                   view="action"
                   size="xl"
                   onClick={handleCloseBox}
-                  disabled={scanStats.currentBoxScanned === 0 || printLock}
+                  disabled={(currentBoxInfo?.boxItemCount || 0) === 0 || printLock}
                   loading={printLock}
                   className={styles.actionButton}
                 >

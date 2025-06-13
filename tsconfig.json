@@ -24,6 +24,6 @@
     "incremental": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "typings.d.ts"],
+  "include": ["src/**/*", "typings.d.ts", "src/global.d.ts"],
   "exclude": ["node_modules", "dist", ".webpack"]
 }

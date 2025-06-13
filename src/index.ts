@@ -2,21 +2,24 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
 
 import { saveCodeToBackup } from './backupService';
 import {
-  listPrinters,
   connectToPrinter,
-  printBarcode,
-  printZpl,
+  listPrinters,
   listSerialPortsForPrinter,
+  printBarcode,
+  printSSCCLabel,
+  printSSCCLabelWithData,
+  printZpl,
+  type SSCCLabelData,
 } from './printer';
 import {
-  setupSerialPort,
-  listSerialPorts,
   connectToPort,
   disconnectFromPort,
+  listSerialPorts,
+  setupSerialPort,
 } from './serialPortConfig';
 import { storeWrapper } from './store-wrapper';
 
@@ -29,7 +32,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-        // Начинаем с полноэкранного режима
+    // Начинаем с полноэкранного режима
     //fullscreen: true,  // Полноэкранный режим
     //kiosk: true,       // Режим киоска (скрывает панель пуск)
     //autoHideMenuBar: true, // Скрываем меню
@@ -75,14 +78,14 @@ app.whenReady().then(() => {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-          "connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://api.test.in.bottlecode.app:3035; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "font-src 'self' data: https://fonts.gstatic.com; " +
-          "img-src 'self' data: blob: https: https://online.sbis.ru https://*.sbis.ru; " +
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval';"
-        ]
-      }
+            "connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://api.test.in.bottlecode.app:3035; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' data: https://fonts.gstatic.com; " +
+            "img-src 'self' data: blob: https: https://online.sbis.ru https://*.sbis.ru; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval';",
+        ],
+      },
     });
   });
 
@@ -154,18 +157,18 @@ ipcMain.handle('list-printers', async () => {
 });
 
 ipcMain.handle(
-    'connect-to-printer',
-    async (_, printerName: string, isNetwork: boolean, address?: string) => {
-      console.log(`IPC: connect-to-printer called with ${printerName}, ${isNetwork}, ${address}`);
-      try {
-        const result = await connectToPrinter(printerName, isNetwork, address);
-        console.log('IPC: connect-to-printer result:', result);
-        return result;
-      } catch (error) {
-        console.error('IPC: connect-to-printer error:', error);
-        return { success: false, error: (error as Error).message };
-      }
+  'connect-to-printer',
+  async (_, printerName: string, isNetwork: boolean, address?: string) => {
+    console.log(`IPC: connect-to-printer called with ${printerName}, ${isNetwork}, ${address}`);
+    try {
+      const result = await connectToPrinter(printerName, isNetwork, address);
+      console.log('IPC: connect-to-printer result:', result);
+      return result;
+    } catch (error) {
+      console.error('IPC: connect-to-printer error:', error);
+      return { success: false, error: (error as Error).message };
     }
+  }
 );
 
 ipcMain.handle('get-saved-printer', () => {
@@ -179,6 +182,17 @@ ipcMain.handle('print-barcode', async (_, barcode: string) => {
 ipcMain.handle('print-zpl', async (_, zplCode: string) => {
   return await printZpl(zplCode);
 });
+
+ipcMain.handle('print-sscc-label', async (_, sscc: string, productName?: string) => {
+  return await printSSCCLabel(sscc, productName);
+});
+
+ipcMain.handle(
+  'print-sscc-label-with-data',
+  async (_, data: SSCCLabelData, labelTemplate?: string) => {
+    return await printSSCCLabelWithData(data, labelTemplate);
+  }
+);
 
 // Добавляем обработчик выхода из полноэкранного режима
 ipcMain.handle('toggle-fullscreen', () => {
@@ -262,10 +276,16 @@ ipcMain.handle('save-backup', async (_, data: unknown, filename: string) => {
 });
 
 ipcMain.handle(
-    'save-code-to-backup',
-    async (_, code: string, type: 'product' | 'package', shiftId: string, additionalData?: unknown) => {
-      return saveCodeToBackup(code, type, shiftId, additionalData);
-    }
+  'save-code-to-backup',
+  async (
+    _,
+    code: string,
+    type: 'product' | 'package',
+    shiftId: string,
+    additionalData?: unknown
+  ) => {
+    return saveCodeToBackup(code, type, shiftId, additionalData);
+  }
 );
 
 // Получение списка файлов бэкапов
@@ -279,19 +299,19 @@ ipcMain.handle('get-backup-files', async () => {
     }
 
     const files = fs
-        .readdirSync(backupDir)
-        .filter(file => file.endsWith('.json'))
-        .map(file => {
-          const filePath = path.join(backupDir, file);
-          const stats = fs.statSync(filePath);
+      .readdirSync(backupDir)
+      .filter(file => file.endsWith('.json'))
+      .map(file => {
+        const filePath = path.join(backupDir, file);
+        const stats = fs.statSync(filePath);
 
-          return {
-            name: file,
-            path: filePath,
-            size: stats.size,
-            modifiedTime: stats.mtime.toISOString(),
-          };
-        });
+        return {
+          name: file,
+          path: filePath,
+          size: stats.size,
+          modifiedTime: stats.mtime.toISOString(),
+        };
+      });
 
     return files;
   } catch (error) {

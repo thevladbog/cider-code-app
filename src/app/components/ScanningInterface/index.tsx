@@ -1,11 +1,13 @@
-import { Text, Card, Button } from '@gravity-ui/uikit';
-import React, { useState, useEffect } from 'react';
+import { Button, Card, Text } from '@gravity-ui/uikit';
+import React, { useEffect, useState } from 'react';
+
+import { useBackup, usePackagingWithVerification } from '@/app/hooks';
+import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
+import { DataMatrixData, IShiftScheme, ShiftStatus } from '@/app/types';
+import { formatGtin } from '@/app/utils';
+import { PackageVerificationModal } from '../PackageVerificationModal';
 
 import styles from './ScanningInterface.module.scss';
-import { IShiftScheme, ShiftStatus } from '@/app/types';
-import { useBackup, useScannerInShift } from '@/app/hooks';
-import { formatGtin } from '@/app/utils';
-
 
 interface ScanningInterfaceProps {
   shift: IShiftScheme;
@@ -18,6 +20,7 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
 }) => {
   const [scanEnabled, setScanEnabled] = useState(true);
   const [showBackupError, setShowBackupError] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Используем хук для бэкапа
   const { backupProduct, backupError } = useBackup({
@@ -33,34 +36,87 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
     },
   });
 
-  // Используем наш хук для сканирования
-  const { lastScannedCode, scannedCodes, scanMessage, scanError, resetScan, clearHistory } =
-    useScannerInShift({
-      shift,
-      enabled: scanEnabled && shift.status === ShiftStatus.PLANNED,
-      onScanSuccess: async data => {
-        console.log('Successfully scanned:', data);
+  // Используем новый хук для упаковки с верификацией
+  const {
+    isWaitingForVerification,
+    pendingSSCC,
+    preparePackagingForVerification,
+    finalizePendingPackaging,
+    cancelPendingPackaging,
+  } = usePackagingWithVerification();
 
-        // Создаем уникальный ключ для кода
-        const codeKey = `${data.gtin}_${data.countryCode}${data.serialNumber}`;
+  // Используем хук для сканирования с упаковкой
+  const {
+    lastScannedCode,
+    scannedCodes,
+    scanMessage,
+    scanError,
+    currentBoxInfo,
+    isPackingMode,
+    resetScan,
+    clearHistory,
+  } = useScannerWithPacking({
+    shift,
+    enabled: scanEnabled && shift.status === ShiftStatus.PLANNED,
+    onScanSuccess: async (data: DataMatrixData) => {
+      console.log('Successfully scanned:', data);
 
-        // Сохраняем код в бэкап
-        await backupProduct(codeKey, {
-          gtin: data.gtin,
-          countryCode: data.countryCode,
-          serialNumber: data.serialNumber,
-          verificationCode: data.verificationCode,
-          scanTime: new Date().toISOString(),
-        });
+      // Создаем уникальный ключ для кода
+      const codeKey = `${data.gtin}_${data.countryCode}${data.serialNumber}`;
 
-        // Здесь можно добавить логику для упаковки и т.д.
-      },
-    });
+      // Сохраняем код в бэкап
+      await backupProduct(codeKey, {
+        gtin: data.gtin,
+        countryCode: data.countryCode,
+        serialNumber: data.serialNumber,
+        verificationCode: data.verificationCode,
+        scanTime: new Date().toISOString(),
+      });
+    },
+    onBoxPacked: async (packedSSCC: string, nextSSCC: string, itemCodes: string[]) => {
+      console.log(`Box packed: ${packedSSCC}, next SSCC: ${nextSSCC}`);
 
+      // Используем новый процесс упаковки с верификацией
+      try {
+        const ssccForVerification = await preparePackagingForVerification(
+          shift.id,
+          itemCodes,
+          shift
+        );
+
+        // Открываем модальное окно для верификации
+        setIsModalOpen(true);
+
+        console.log(`Prepared packaging for verification: ${ssccForVerification}`);
+      } catch (error) {
+        console.error('Error preparing packaging for verification:', error);
+      }
+    },
+    onSSCCInitialized: (sscc: string) => {
+      console.log(`SSCC initialized: ${sscc}`);
+    },
+  });
   // Оповещаем родительский компонент об изменении количества отсканированных кодов
   useEffect(() => {
     onScanCountUpdated?.(scannedCodes.length);
   }, [scannedCodes.length, onScanCountUpdated]);
+
+  // Обработчик успешной верификации
+  const handleVerificationSuccess = async () => {
+    try {
+      const nextSSCC = await finalizePendingPackaging();
+      console.log(`Packaging finalized. Next SSCC: ${nextSSCC}`);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error finalizing packaging:', error);
+    }
+  };
+
+  // Обработчик отмены верификации
+  const handleVerificationCancel = () => {
+    cancelPendingPackaging();
+    setIsModalOpen(false);
+  };
 
   // Автоматический сброс сообщения о сканировании через 3 секунды
   useEffect(() => {
@@ -140,8 +196,7 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
                 <Text variant="body-1">Отсканируйте Datamatrix код продукции</Text>
               </div>
             )}
-          </div>
-
+          </div>{' '}
           <div className={styles.scanningStats}>
             <div className={styles.statsCard}>
               <div className={styles.statsValue}>
@@ -150,7 +205,22 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
               <Text variant="body-1">Всего отсканировано</Text>
             </div>
 
-            {/* Здесь можно добавить другую статистику */}
+            {/* Информация о коробе для режима упаковки */}
+            {isPackingMode && currentBoxInfo && (
+              <div className={styles.statsCard}>
+                <div className={styles.statsValue}>
+                  <Text variant="display-3">
+                    {currentBoxInfo.boxItemCount}/{currentBoxInfo.maxBoxCount}
+                  </Text>
+                </div>
+                <Text variant="body-1">Товаров в коробе</Text>
+                {currentBoxInfo.currentSSCC && (
+                  <Text variant="body-2" className={styles.ssccCode}>
+                    SSCC: {currentBoxInfo.currentSSCC}
+                  </Text>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -184,7 +254,6 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
                 <Text variant="body-2">Код проверки</Text>
               </div>
             </div>
-
             <div className={styles.scanHistoryBody}>
               {scannedCodes.map((code, index) => (
                 <div
@@ -205,9 +274,22 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
                   </div>
                 </div>
               ))}
-            </div>
+            </div>{' '}
           </div>
         </Card>
+      )}
+
+      {/* Модальное окно для верификации упаковки */}
+      {isWaitingForVerification && pendingSSCC && (
+        <PackageVerificationModal
+          visible={isModalOpen}
+          onClose={handleVerificationCancel}
+          onVerified={handleVerificationSuccess}
+          onFinalizePacking={handleVerificationSuccess}
+          sscc={pendingSSCC}
+          productCount={currentBoxInfo?.maxBoxCount || 0}
+          shift={shift}
+        />
       )}
     </div>
   );

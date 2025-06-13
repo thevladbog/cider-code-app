@@ -1525,7 +1525,6 @@ components:
         currentSscc:
           type: string
       required:
-        - gln
         - productId
     BoxesCodeDataDto:
       type: object
@@ -1863,6 +1862,8 @@ components:
           type: number
         totalPage:
           type: number
+        labelTemplate:
+          type: string
       required:
         - result
         - total

@@ -194,9 +194,3 @@ export interface PackageWithSSCC {
   verifiedBy?: string; // Кто проверил (ID оператора)
   verifiedAt?: number; // Когда проверено
 }
-
-declare global {
-  interface Window {
-    electronAPI: ElectronAPI;
-  }
-}

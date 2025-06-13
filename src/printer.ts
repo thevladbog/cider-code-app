@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import * as net_socket from 'net';
 
+import { addDays, format } from 'date-fns';
 import { storeWrapper } from './store-wrapper';
 
 const usb = require('usb');
@@ -254,8 +255,8 @@ function createBarcodeZPL(barcode: string): string {
 ^LH0,0
 ^CI28
 ^FX Label: "" - Size: 75mm x 120mm ^FS
-^FO26,504^BY2,2.5,80^BCN,80,N,N,N^FD${barcode}^FS
-^FO26,594^AAN,18,10^FB520,1,0,C,0^FD${barcode}\\&^FS^XZ`;
+^FO26,100^BY2,2.5,80^BCN,80,N,N,N^FD${barcode}^FS
+^FO26,200^AAN,18,10^FB520,1,0,C,0^FD${barcode}\\&^FS^XZ`;
 }
 
 // Печать ZPL кода для принтера этикеток
@@ -819,5 +820,215 @@ export async function listSerialPortsForPrinter() {
   } catch (error) {
     console.error('Error listing serial ports:', error);
     return [];
+  }
+}
+
+// Интерфейс для данных печати SSCC этикетки
+export interface SSCCLabelData {
+  ssccCode: string;
+  fullName: string;
+  plannedDate: string; // format: dd.MM.yy г.
+  expiration: string; // format: dd.MM.yy г.
+  barcode: string; // GTIN без лидирующего 0
+  alcoholCode: string;
+  currentCountInBox: number;
+  volume: number;
+  shiftId: string;
+  pictureUrl: string; // URL изображения продукции
+  labelTemplate?: string; // Пользовательский шаблон
+}
+
+/**
+ * Форматирует дату в формат dd.MM.yy г.
+ */
+export function formatDateForLabel(date: Date): string {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear().toString().slice(-2);
+  return `${day}.${month}.${year} г.`;
+}
+
+/**
+ * Преобразует 14-значный GTIN в 13-значный EAN-13 для штрих-кода
+ * Убирает первую цифру (индикатор упаковки) если она 0
+ */
+export function formatGtinForBarcode(gtin: string): string {
+  // Очищаем от пробелов и других символов
+  const cleanGtin = gtin.replace(/\D/g, '');
+
+  // Если GTIN 14-значный и начинается с 0, убираем первую цифру
+  if (cleanGtin.length === 14 && cleanGtin.startsWith('0')) {
+    const ean13 = cleanGtin.substring(1);
+    console.log(`Converted GTIN-14 ${cleanGtin} to EAN-13 ${ean13}`);
+    return ean13;
+  }
+
+  // Если уже 13-значный или не начинается с 0, возвращаем как есть
+  if (cleanGtin.length === 13) {
+    console.log(`Using EAN-13 ${cleanGtin} as is`);
+    return cleanGtin;
+  }
+
+  // Если длина не подходит, логируем предупреждение
+  console.warn(`Unexpected GTIN length: ${cleanGtin.length}, value: ${cleanGtin}`);
+  return cleanGtin;
+}
+
+/**
+ * Вычисляет дату срока годности
+ */
+export function calculateExpirationDate(plannedDate: Date, expirationInDays: number): Date {
+  const expiration = new Date(plannedDate);
+  expiration.setDate(expiration.getDate() + expirationInDays);
+  return expiration;
+}
+
+/**
+ * Стандартный шаблон для SSCC этикетки
+ */
+const DEFAULT_SSCC_TEMPLATE = `^XA^PW800^FO4,44^GB791,0,4^FS ^FO12,8^A@N,16,15,46055637.FNT^FH\\^CI28^FDООО "РЭБЕЛ ЭППЛ"^FS^CI27 ^FO12,28^A@N,14,14,59303640.FNT^FH\\^CI28^FDг. Москва, Проезд 1-Й Силикатный, д. 10, Строение 2, 123308^FS^CI27 ^FO691,4^GFA,405,444,12,:Z64:eJx9kD9Lw0AYhy/awfGE4iwZO73FoaFDkhKlq0OzO0jHcoeSOJUnWTr6EUKyhHNwrRxUIUPH+h2yORQlSyEQvV5DaxYfOO7Hw+/+8J7wLWmaztIo+Nnz9RnrkjjucA422oPf/2R7oA0QGrXbqIWzvCgEm5ommDC8o/QUeX4P7vGyDMuQrau3+UZ6jT6yW98nBOdFKKQPLADlNTb2e9LX/cA0DLzrj1U/K8IiZBOr0QfAy7wsBauqxXzxNHQo/WZTzyM+zvNEPLOq34d+3fcIAYJXuXr3wdjeT9V/lHcuEpFEEwB5wulS2v0YE+j5OBOleI3WG8NaNOZwc8gNv345zNB1R5eue7Xd0H8wxBjbxVa9JMfneifiusqadmZfa1jlo5TzGecy/QKKwZsR:111E ^FO4,370^GB791,0,4^FS ^FO12,61^A@N,14,14,59303640.FNT^FH\\^CI28^FDПродукция:^FS^CI27 ^FO12,92^FB520,2^^A@N,25,26,46055637.FNT^FH\\^CI28^FD{{fullName}}^FS^CI27 ^FO12,287^A@N,14,14,59303640.FNT^FH\\^CI28^FDДата розлива:^FS^CI27 ^FO28,325^A@N,20,20,46055637.FNT^FH\\^CI28^FD{{plannedDate}}^FS^CI27 ^FO204,287^A@N,14,14,59303640.FNT^FH\\^CI28^FDСрок годности:^FS^CI27 ^FO236,325^A@N,20,20,46055637.FNT^FH\\^CI28^FD{{expiration}}^FS^CI27 ^FO665,44^GB0,328,4^FS ^BY2,2,26^FT737,292^BEB,,Y,N ^FH\\^FD{{barcode}}^FS ^FO692,40^FB280,1,0,C^A@B,14,14,59303640.FNT^FH\\^CI28^FDШтрих-код единицы продукции^FS^CI28 ^FO4,157^GB663,0,4^FS ^FO4,274^GB663,0,4^FS ^FO396,171^A@N,14,14,59303640.FNT^FH\\^CI28^FDКод ЕГАИС::^FS^CI28 ^FO396,197^A@N,20,20,46055637.FNT^FH\\^CI28^FD{{alcoholCode}}^FS^CI28 ^FO529,276^GB0,96,4^FS ^FO539,287^A@N,14,14,59303640.FNT^FH\\^CI28^FDУпаковано:^FS^CI28 ^FO563,312^A@N,59,60,46055637.FNT^FH\\^CI28^FD{{currentCountInBox}}^FS^CI28 ^FO386,160^GB0,212,4^FS ^FO396,287^A@N,14,14,59303640.FNT^FH\\^CI28^FDОбъем единицы, л:^FS^CI28 ^FO400,312^A@N,59,60,46055637.FNT^FH\\^CI28^FD{{volume}}^FS^CI28 ^FO396,227^A@N,14,14,59303640.FNT^FH\\^CI28^FDКод упаковки:^FS^CI27 ^FO396,253^A@N,20,20,46055637.FNT^FH\\^CI28^FD{{ssccCode}}^FS^CI27 ^FO194,160^GB0,212,4^FS ^FT56,276^BQN,2,2 ^FH\\^FDMA,{{pictureUrl}}^FS ^FT12,171^A@N,14,14,59303640.FNT^FH\\^CI28^FDИзображение продукции:^FS^CI27 ^FO204,171^A@N,14,14,59303640.FNT^FH\\^CI28^FDID смены:^FS^CI27 ^FO208,201^A@N,47,48,46055637.FNT^FH\\^CI28^FD{{shiftId}}^FS^CI27 ^BY4,3,69^FT88,441^BCN,,N,N ^FH\\^FD>;>800{{ssccCode}}^FS ^FO0,455^FB800,1,0,C^A@N,14,14,59303640.FNT^FH\\^CI28^FD(00){{ssccCode}}^FS^CI27 ^XZ`;
+
+/**
+ * Заменяет плейсхолдеры в шаблоне на реальные данные
+ */
+function replaceTemplatePlaceholders(template: string, data: SSCCLabelData): string {
+  return template
+    .replace(/\{\{fullName\}\}/g, data.fullName)
+    .replace(/\{\{plannedDate\}\}/g, format(data.plannedDate, 'dd.MM.yy г.'))
+    .replace(/\{\{expiration\}\}/g, format(data.expiration, 'dd.MM.yy г.'))
+    .replace(/\{\{barcode\}\}/g, formatGtinForBarcode(data.barcode))
+    .replace(/\{\{alcoholCode\}\}/g, data.alcoholCode)
+    .replace(/\{\{currentCountInBox\}\}/g, data.currentCountInBox.toString())
+    .replace(/\{\{volume\}\}/g, data.volume.toString())
+    .replace(/\{\{ssccCode\}\}/g, data.ssccCode)
+    .replace(/\{\{shiftId\}\}/g, data.shiftId.substring(0, 6))
+    .replace(/\{\{pictureUrl\}\}/g, data.pictureUrl);
+}
+
+/**
+ * Создает объект SSCCLabelData из данных смены, продукта и других параметров
+ */
+export function createSSCCLabelData(
+  shift: {
+    product: {
+      fullName: string;
+      gtin: string;
+      alcoholCode: string;
+      expirationInDays: number;
+      volume: number;
+      pictureUrl?: string; // URL изображения продукции
+    };
+    plannedDate: string | Date;
+    id: string;
+  },
+  ssccCode: string,
+  currentCountInBox: number,
+  labelTemplate?: string
+): SSCCLabelData {
+  const product = shift.product;
+
+  // Преобразуем plannedDate в объект Date если это строка
+  const plannedDate =
+    typeof shift.plannedDate === 'string' ? new Date(shift.plannedDate) : shift.plannedDate;
+
+  // Вычисляем дату срока годности
+  const expirationDate = addDays(plannedDate, product.expirationInDays);
+
+  console.log('Creating SSCC label data:', {
+    shift,
+    product,
+    plannedDate,
+    expirationDate,
+    formattedPlanned: format(plannedDate, 'dd.MM.yy г.'),
+    formattedExpiration: format(expirationDate, 'dd.MM.yy г.'),
+    originalGtin: product.gtin,
+    formattedBarcode: formatGtinForBarcode(product.gtin),
+  });
+  return {
+    ssccCode,
+    fullName: product.fullName,
+    plannedDate: format(plannedDate, 'dd.MM.yy г.'),
+    expiration: format(expirationDate, 'dd.MM.yy г.'),
+    barcode: formatGtinForBarcode(product.gtin),
+    alcoholCode: product.alcoholCode || '',
+    currentCountInBox,
+    volume: product.volume,
+    shiftId: shift.id.substring(0, 6),
+    pictureUrl: product.pictureUrl || '', // URL изображения продукции или пустая строка
+    labelTemplate,
+  };
+}
+
+/**
+ * Генерирует ZPL код для печати SSCC этикетки с поддержкой шаблонов
+ */
+export function generateSSCCLabel(data: SSCCLabelData, labelTemplate?: string): string {
+  // Используем переданный шаблон, или шаблон из данных, или стандартный
+  const template = labelTemplate || data.labelTemplate || DEFAULT_SSCC_TEMPLATE;
+
+  // Заменяем плейсхолдеры на реальные данные
+  const zplCode = replaceTemplatePlaceholders(template, data);
+
+  return zplCode;
+}
+
+/**
+ * Генерирует ZPL код для печати SSCC этикетки (устаревшая версия для обратной совместимости)
+ * @deprecated Используйте generateSSCCLabel(data: SSCCLabelData) вместо этого
+ */
+export function generateSSCCLabelLegacy(_sscc: string, _productName?: string): string {
+  // Используем стандартный шаблон без замены данных
+  return DEFAULT_SSCC_TEMPLATE;
+}
+
+/**
+ * Печатает SSCC этикетку с новым интерфейсом
+ */
+export async function printSSCCLabelWithData(
+  data: SSCCLabelData,
+  labelTemplate?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const zplCode = generateSSCCLabel(data, labelTemplate);
+    const result = await printZpl(zplCode);
+
+    if (result.success) {
+      console.log(`SSCC label printed successfully: ${data.ssccCode}`);
+    } else {
+      console.error(`Failed to print SSCC label: ${result.error}`);
+    }
+
+    return result;
+  } catch (error) {
+    const errorMessage = `Error printing SSCC label: ${error}`;
+    console.error(errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Печатает SSCC этикетку (устаревшая версия для обратной совместимости)
+ * @deprecated Используйте printSSCCLabelWithData(data: SSCCLabelData) вместо этого
+ */
+export async function printSSCCLabel(
+  _sscc: string,
+  _productName?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Используем стандартный шаблон без данных
+    const zplCode = DEFAULT_SSCC_TEMPLATE;
+    const result = await printZpl(zplCode);
+
+    if (result.success) {
+      console.log(`SSCC label printed (legacy mode)`);
+    } else {
+      console.error(`Failed to print SSCC label: ${result.error}`);
+    }
+
+    return result;
+  } catch (error) {
+    const errorMessage = `Error printing SSCC label: ${error}`;
+    console.error(errorMessage);
+    return { success: false, error: errorMessage };
   }
 }
