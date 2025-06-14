@@ -1,6 +1,8 @@
 import { MakerDeb } from '@electron-forge/maker-deb';
+import { MakerDMG } from '@electron-forge/maker-dmg';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
+import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { WebpackPlugin } from '@electron-forge/plugin-webpack';
 import type { ForgeConfig } from '@electron-forge/shared-types';
@@ -26,6 +28,15 @@ const config: ForgeConfig = {
       // iconUrl: 'https://example.com/icon.ico', // URL для установщика Windows (добавить когда будет .ico файл)
       // setupIcon: './icons/icon.ico', // Локальная иконка для установщика (добавить когда будет .ico файл)
     }),
+    new MakerZIP({}, ['darwin']),
+    // DMG maker can only run on macOS, so we conditionally include it
+    ...(process.platform === 'darwin'
+      ? [
+          new MakerDMG({
+            icon: './icons/icon.png',
+          }),
+        ]
+      : []),
     new MakerRpm({
       options: {
         icon: './icons/icon.png',
