@@ -21,6 +21,8 @@ interface UsePackagingWithVerificationResult {
   ) => Promise<string>;
   finalizePendingPackaging: () => Promise<string>;
   cancelPendingPackaging: () => void;
+  // Новый метод для получения данных упаковки
+  getPendingPackageData: () => { ssccCode: string; productCodes: string[] } | null;
 }
 
 /**
@@ -131,11 +133,29 @@ export function usePackagingWithVerification(): UsePackagingWithVerificationResu
     }
   };
 
+  /**
+   * Получает данные ожидающей упаковки для сохранения в бэкап
+   */
+  const getPendingPackageData = useCallback((): {
+    ssccCode: string;
+    productCodes: string[];
+  } | null => {
+    if (!pendingPackData || !pendingSSCC) {
+      return null;
+    }
+
+    return {
+      ssccCode: pendingSSCC,
+      productCodes: pendingPackData.codes,
+    };
+  }, [pendingPackData, pendingSSCC]);
+
   return {
     isWaitingForVerification,
     pendingSSCC,
     preparePackagingForVerification,
     finalizePendingPackaging,
     cancelPendingPackaging,
+    getPendingPackageData,
   };
 }

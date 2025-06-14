@@ -1,0 +1,207 @@
+.container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--g-color-line-generic);
+}
+
+.loading,
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: var(--g-color-text-secondary);
+}
+
+.backupList {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dateGroup {
+  border: 1px solid var(--g-color-line-generic);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--g-color-base-background);
+}
+
+.dateHeader {
+  background: var(--g-color-base-generic);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--g-color-line-generic);
+}
+
+.shiftsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.shiftItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--g-color-line-generic);
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background: var(--g-color-base-generic-hover);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.shiftInfo {
+  flex: 1;
+  margin-right: 16px;
+}
+
+.shiftHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.modifiedDate {
+  color: var(--g-color-text-secondary);
+  font-size: 12px;
+}
+
+.shiftDetails {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.hasFile {
+  color: var(--g-color-text-positive);
+  font-weight: 500;
+}
+
+.noFile {
+  color: var(--g-color-text-secondary);
+  font-weight: 500;
+}
+
+.fileSize {
+  color: var(--g-color-text-hint);
+  font-size: 12px;
+}
+
+.shiftActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Modal styles for backup viewer */
+.backupViewerModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backupViewerOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.backupViewerContent {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  width: 1200px;
+  background: var(--g-color-base-background);
+  border-radius: 12px;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+
+  [data-theme='dark'] & {
+    background: var(--g-color-base-background);
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.4),
+      0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .shiftItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .shiftDetails {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .shiftActions {
+    justify-content: stretch;
+
+    button {
+      flex: 1;
+    }
+  }
+}
+
+/* Dark theme support */
+[data-theme='dark'] {
+  .dateGroup {
+    background: var(--g-color-base-background);
+    border-color: var(--g-color-line-generic);
+  }
+
+  .dateHeader {
+    background: var(--g-color-base-generic);
+  }
+
+  .shiftItem:hover {
+    background: var(--g-color-base-generic-hover);
+  }
+}

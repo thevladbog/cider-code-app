@@ -1,7 +1,15 @@
 // ShiftDetailScreen/index.tsx
 import { DatePicker } from '@gravity-ui/date-components';
 import { DateTime, dateTimeParse } from '@gravity-ui/date-utils';
-import { ArrowLeft, CircleXmark, Pause, Play, Printer, TrashBin } from '@gravity-ui/icons';
+import {
+  ArrowLeft,
+  CircleXmark,
+  Database,
+  Pause,
+  Play,
+  Printer,
+  TrashBin,
+} from '@gravity-ui/icons';
 import {
   Button,
   Card,
@@ -18,12 +26,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { ShiftService } from '@/app/api/generated';
 import { useShift, useUpdateShiftStatus, useUserProfile } from '@/app/api/queries';
+import { useBackup } from '@/app/hooks/useBackup';
 import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
 import { DataMatrixData, ShiftStatus } from '@/app/types';
 import { formatGtin, formatNumber, formatSSCC } from '@/app/utils';
 import { compareSSCCCodes } from '@/app/utils/datamatrix';
 
 import { AppHeader } from '../AppHeader';
+import BackupManager from '../BackupManager';
 import styles from './ShiftDetailScreen.module.scss';
 
 export const ShiftDetailScreen: React.FC = () => {
@@ -46,7 +56,10 @@ export const ShiftDetailScreen: React.FC = () => {
   const { data: shift, isLoading, error } = useShift(shiftId || null);
   const { mutate: updateStatus } = useUpdateShiftStatus();
   const { data: userProfile } = useUserProfile();
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient(); // Инициализация хука бэкапирования
+  const { logAction, logError, savePackageToBackup } = useBackup({
+    shiftId: shiftId || '',
+  });
 
   // Функция для озвучивания сообщений
   const speakMessage = useCallback((message: string) => {
@@ -76,18 +89,40 @@ export const ShiftDetailScreen: React.FC = () => {
       // Обрабатываем успешное сканирование
       handleCodeScanned(data);
     },
-    onScanError: (_message: string) => {
+    onScanError: async (message: string) => {
       // Показываем ошибку сканирования - негативный сценарий, озвучиваем
       setErrorIndex(scannedCodes.length);
       setTimeout(() => setErrorIndex(null), 2000);
       if (speakMessageRef.current) {
         speakMessageRef.current('Ошибка сканирования');
       }
+
+      // Логируем ошибку в бэкап
+      try {
+        await logError('', 'product', message, {
+          timestamp: new Date().toISOString(),
+          errorType: 'scan_error',
+        });
+      } catch (error) {
+        console.error('Failed to log scan error:', error);
+      }
     },
-    onDuplicateScan: (_data: DataMatrixData) => {
+    onDuplicateScan: async (data: DataMatrixData) => {
       // Обработка дубликата - негативный сценарий, озвучиваем
       if (speakMessageRef.current) {
         speakMessageRef.current('Дубликат');
+      }
+
+      // Логируем дубликат в бэкап
+      try {
+        await logError(data.rawData, 'product', 'Дубликат кода', {
+          gtin: data.gtin,
+          serialNumber: data.serialNumber,
+          timestamp: new Date().toISOString(),
+          errorType: 'duplicate_scan',
+        });
+      } catch (error) {
+        console.error('Failed to log duplicate error:', error);
       }
     },
     onBoxReadyToPack: (currentSSCC: string, itemCodes: string[]) => {
@@ -165,7 +200,6 @@ export const ShiftDetailScreen: React.FC = () => {
       initialFactCount,
     });
   }, [shift?.result]);
-
   // Обработчик успешной верификации SSCC
   const handleSSCCVerificationSuccess = useCallback(async () => {
     try {
@@ -175,6 +209,26 @@ export const ShiftDetailScreen: React.FC = () => {
       }
 
       console.log('SSCC verification successful, confirming box packing...');
+
+      // Сохраняем упаковку в локальный бэкап
+      console.log('Saving package to backup:', {
+        sscc: pendingSSCC,
+        productCodes: pendingItemCodes,
+        shiftId: shiftId || '',
+      });
+
+      const backupSuccess = await savePackageToBackup(
+        pendingSSCC,
+        pendingItemCodes,
+        shiftId || '',
+        Date.now()
+      );
+
+      if (backupSuccess) {
+        console.log('Package successfully saved to backup');
+      } else {
+        console.error('Failed to save package to backup');
+      }
 
       // Подтверждаем упаковку через API
       const nextSSCC = await confirmBoxPacking(pendingSSCC, pendingItemCodes);
@@ -211,7 +265,7 @@ export const ShiftDetailScreen: React.FC = () => {
       setActiveModal(null);
       setIsPrinting(false);
     }
-  }, [pendingSSCC, pendingItemCodes, confirmBoxPacking, resetScan]);
+  }, [pendingSSCC, pendingItemCodes, confirmBoxPacking, resetScan, savePackageToBackup, shiftId]);
 
   // Настройка сканера для модального окна
   useEffect(() => {
@@ -233,76 +287,20 @@ export const ShiftDetailScreen: React.FC = () => {
           }
         }),
       };
-
       return () => {
         // Отписываемся при закрытии модального окна
         if (modalScannerRef.current) {
           console.log('Unsubscribing modal scanner');
           modalScannerRef.current.unsubscribe();
           modalScannerRef.current = null;
-        } // Если модальное окно закрывается без верификации, снимаем блокировку
-        if (pendingSSCC && activeModal === 'verification') {
-          setIsPrinting(false);
-          setPendingSSCC(null);
-          setPendingItemCodes([]);
         }
+
+        // ВАЖНО: НЕ сбрасываем isPrinting автоматически в cleanup!
+        // isPrinting должен сбрасываться только в handleSSCCVerificationSuccess
+        // или при явном закрытии модального окна пользователем
       };
     }
   }, [activeModal, pendingSSCC, resetScan, handleSSCCVerificationSuccess]);
-  // Обработчик упаковки короба от хука
-  const handleBoxPacked = useCallback(
-    async (packedSSCC: string, nextSSCC: string) => {
-      console.log('Box packed with SSCC:', packedSSCC, 'Next SSCC:', nextSSCC);
-      try {
-        // Проверяем, что у нас есть данные смены
-        if (!shift?.result) {
-          console.error('No shift data available for SSCC label');
-          if (speakMessageRef.current) {
-            speakMessageRef.current('Ошибка: нет данных смены');
-          }
-          return;
-        }
-
-        // Вычисляем дату истечения срока годности
-        const plannedDate = new Date(shift.result.plannedDate);
-        const expirationDate = new Date(plannedDate);
-        expirationDate.setDate(plannedDate.getDate() + shift.result.product.expirationInDays); // Печатаем SSCC этикетку с полными данными
-        const printResult = await window.electronAPI.printSSCCLabelWithData({
-          ssccCode: packedSSCC,
-          shiftId: shift.result.id,
-          fullName: shift.result.product.fullName,
-          plannedDate: shift.result.plannedDate,
-          expiration: expirationDate.toISOString().split('T')[0], // Форматируем как YYYY-MM-DD
-          barcode: shift.result.product.gtin,
-          alcoholCode: shift.result.product.alcoholCode || '',
-          currentCountInBox: shift.result.countInBox || 0,
-          volume: shift.result.product.volume,
-          pictureUrl: shift.result.product.pictureUrl || '', // URL изображения продукции
-        });
-
-        if (printResult.success) {
-          console.log('Print successful, showing verification dialog');
-          setPendingSSCC(packedSSCC);
-          setActiveModal('verification');
-        } else {
-          console.error('Print failed:', printResult.error);
-          if (speakMessageRef.current) {
-            speakMessageRef.current('Ошибка печати этикетки');
-          }
-          setIsPrinting(false);
-          setPrintLock(false);
-        }
-      } catch (error) {
-        console.error('Error printing SSCC:', error);
-        if (speakMessageRef.current) {
-          speakMessageRef.current('Ошибка печати этикетки');
-        }
-        setIsPrinting(false);
-        setPrintLock(false);
-      }
-    },
-    [shift]
-  );
 
   // Обработчик готовности коробки к упаковке (печать этикетки и показ модала)
   const handleBoxReadyToPack = useCallback(
@@ -325,9 +323,7 @@ export const ShiftDetailScreen: React.FC = () => {
         // Вычисляем дату истечения срока годности
         const plannedDate = new Date(shift.result.plannedDate);
         const expirationDate = new Date(plannedDate);
-        expirationDate.setDate(plannedDate.getDate() + shift.result.product.expirationInDays);
-
-        // Печатаем SSCC этикетку с полными данными
+        expirationDate.setDate(plannedDate.getDate() + shift.result.product.expirationInDays); // Печатаем SSCC этикетку с полными данными
         const printResult = await window.electronAPI.printSSCCLabelWithData({
           ssccCode: currentSSCC,
           shiftId: shift.result.id,
@@ -336,19 +332,43 @@ export const ShiftDetailScreen: React.FC = () => {
           expiration: expirationDate.toISOString().split('T')[0], // Форматируем как YYYY-MM-DD
           barcode: shift.result.product.gtin,
           alcoholCode: shift.result.product.alcoholCode || '',
-          currentCountInBox: shift.result.countInBox || 0,
+          currentCountInBox: itemCodes.length, // Фактическое количество кодов в коробе
           volume: shift.result.product.volume,
           pictureUrl: shift.result.product.pictureUrl || '', // URL изображения продукции
         });
-
         if (printResult.success) {
           console.log('Print successful, showing verification dialog');
           setActiveModal('verification');
+
+          // Логируем упаковку короба в бэкап
+          try {
+            await logAction(currentSSCC, 'box_packed', {
+              itemCodes: itemCodes,
+              itemCount: itemCodes.length,
+              shiftId: shift.result.id,
+              productName: shift.result.product.fullName,
+            });
+          } catch (error) {
+            console.error('Failed to log box packing:', error);
+          }
         } else {
           console.error('Print failed:', printResult.error);
           if (speakMessageRef.current) {
             speakMessageRef.current('Ошибка печати этикетки');
           }
+
+          // Логируем ошибку печати в бэкап
+          try {
+            await logError(currentSSCC, 'package', `Ошибка печати этикетки: ${printResult.error}`, {
+              itemCodes: itemCodes,
+              itemCount: itemCodes.length,
+              errorType: 'print_error',
+              timestamp: new Date().toISOString(),
+            });
+          } catch (error) {
+            console.error('Failed to log print error:', error);
+          }
+
           // Сбрасываем ожидающие данные при ошибке
           setPendingSSCC(null);
           setPendingItemCodes([]);
@@ -358,16 +378,28 @@ export const ShiftDetailScreen: React.FC = () => {
         if (speakMessageRef.current) {
           speakMessageRef.current('Ошибка печати этикетки');
         }
+
+        // Логируем общую ошибку упаковки в бэкап
+        try {
+          await logError(currentSSCC, 'package', `Ошибка подготовки упаковки: ${error}`, {
+            itemCodes: itemCodes,
+            itemCount: itemCodes.length,
+            errorType: 'packaging_error',
+            timestamp: new Date().toISOString(),
+          });
+        } catch (logErr) {
+          console.error('Failed to log packaging error:', logErr);
+        }
+
         // Сбрасываем ожидающие данные при ошибке
         setPendingSSCC(null);
         setPendingItemCodes([]);
       }
     },
-    [shift]
-  );
-  // Обработчик успешного сканирования (используется новым хуком)
+    [shift, logAction, logError]
+  ); // Обработчик успешного сканирования (используется новым хуком)
   const handleCodeScanned = useCallback(
-    (_data: DataMatrixData) => {
+    async (data: DataMatrixData) => {
       // Обновляем счетчики на основе данных от хука
       setScanStats(prev => ({
         ...prev,
@@ -375,8 +407,20 @@ export const ShiftDetailScreen: React.FC = () => {
         totalScanned: prev.totalScanned + 1,
         totalShiftScanned: prev.totalShiftScanned + 1, // Увеличиваем общий счетчик смены
       }));
+
+      // Логируем успешное сканирование в бэкап
+      try {
+        await logAction(data.rawData, 'scan_success', {
+          gtin: data.gtin,
+          serialNumber: data.serialNumber,
+          currentBoxCount: currentBoxInfo?.boxItemCount || 0,
+          boxSSCC: currentBoxInfo?.currentSSCC || null,
+        });
+      } catch (error) {
+        console.error('Failed to log scan success:', error);
+      }
     },
-    [currentBoxInfo?.boxItemCount]
+    [currentBoxInfo?.boxItemCount, currentBoxInfo?.currentSSCC, logAction]
   );
 
   // Обработчик удаления текущего короба
@@ -398,7 +442,6 @@ export const ShiftDetailScreen: React.FC = () => {
     }));
     setActiveModal(null);
   };
-
   // Обработчик ручного закрытия короба
   const handleCloseBox = async () => {
     console.log('handleCloseBox called manually');
@@ -410,12 +453,21 @@ export const ShiftDetailScreen: React.FC = () => {
 
     setIsPrinting(true);
 
-    // В новой системе упаковка должна происходить автоматически через хук
-    // Здесь мы можем только принудительно закрыть короб, если нужно
     try {
       // Если используется режим упаковки и есть SSCC, можно попробовать упаковать
       if (currentBoxInfo?.currentSSCC) {
-        await handleBoxPacked(currentBoxInfo.currentSSCC, currentBoxInfo.currentSSCC);
+        // Получаем последние отсканированные коды для текущего короба
+        const currentBoxCodes = scannedCodes
+          .slice(-currentBoxInfo.boxItemCount)
+          .map(item => item.rawData);
+
+        await handleBoxReadyToPack(currentBoxInfo.currentSSCC, currentBoxCodes);
+
+        // НЕ сбрасываем setIsPrinting здесь, так как это должно произойти после верификации
+        // setIsPrinting будет сброшен в handleSSCCVerificationSuccess или при ошибке
+      } else {
+        // Если нет SSCC, сбрасываем isPrinting
+        setIsPrinting(false);
       }
     } catch (error) {
       console.error('Error in manual box closing:', error);
@@ -475,12 +527,67 @@ export const ShiftDetailScreen: React.FC = () => {
       navigate('/shifts');
     }
   };
-
   // Обработчик изменения настройки формирования коробов
-  const handleUseCratesChange = (value: boolean) => {
-    setUseCrates(value);
-    // Здесь можно также сохранить настройку в API
-  };
+  const handleUseCratesChange = useCallback(
+    async (value: boolean) => {
+      if (!shiftId || !shift) return;
+
+      setUseCrates(value);
+
+      try {
+        // Отправляем запрос на обновление настройки упаковки
+        await ShiftService.shiftControllerUpdate({
+          id: shiftId,
+          requestBody: {
+            packing: value,
+          },
+        });
+
+        console.log('Packing setting updated successfully:', value);
+
+        // Инвалидируем кэш для обновления данных смены
+        await queryClient.invalidateQueries({
+          queryKey: ['shift', shiftId],
+        });
+
+        // Логируем изменение настройки в бэкап
+        try {
+          await logAction('', `packing_mode_${value ? 'enabled' : 'disabled'}`, {
+            packingEnabled: value,
+            timestamp: new Date().toISOString(),
+            shiftId: shiftId,
+          });
+        } catch (logError) {
+          console.error('Failed to log packing mode change:', logError);
+        }
+
+        if (speakMessageRef.current) {
+          speakMessageRef.current(value ? 'Упаковка включена' : 'Упаковка отключена');
+        }
+      } catch (error) {
+        console.error('Failed to update packing setting:', error);
+
+        // Возвращаем предыдущее значение при ошибке
+        setUseCrates(shift.result.packing);
+
+        // Логируем ошибку изменения настройки
+        try {
+          await logError('', 'product', `Ошибка изменения настройки упаковки: ${error}`, {
+            packingEnabled: value,
+            errorType: 'packing_setting_error',
+            timestamp: new Date().toISOString(),
+          });
+        } catch (logErr) {
+          console.error('Failed to log packing setting error:', logErr);
+        }
+
+        if (speakMessageRef.current) {
+          speakMessageRef.current('Ошибка изменения настройки упаковки');
+        }
+      }
+    },
+    [shiftId, shift, queryClient, logAction, logError]
+  );
 
   // Обработчик изменения статуса смены (пауза/возобновление)
   const handleToggleShiftStatus = () => {
@@ -931,9 +1038,21 @@ export const ShiftDetailScreen: React.FC = () => {
                       <Printer />
                       <span>Закрыть короб</span>
                     </span>
-                  </Button>
+                  </Button>{' '}
                 </>
               )}{' '}
+              <Button
+                view="outlined-info"
+                size="xl"
+                onClick={() => setActiveModal('backupManager')}
+                disabled={printLock}
+                className={styles.actionButton}
+              >
+                <span className={styles.buttonContent}>
+                  <Database />
+                  <span>Просмотр бэкапов</span>
+                </span>
+              </Button>{' '}
               <Button
                 view={shift.result.status === 'PAUSED' ? 'outlined-warning' : 'normal'}
                 size="xl"
@@ -1003,7 +1122,7 @@ export const ShiftDetailScreen: React.FC = () => {
               </div>
               <div className={styles.modalCode}>
                 <Text variant="display-3">{formatSSCC(pendingSSCC)}</Text>
-              </div>
+              </div>{' '}
               <Button
                 view="flat"
                 size="xl"
@@ -1011,6 +1130,8 @@ export const ShiftDetailScreen: React.FC = () => {
                   // При отмене сбрасываем все состояния
                   setActiveModal(null);
                   setPendingSSCC(null);
+                  setPendingItemCodes([]);
+                  setIsPrinting(false);
                   setPrintLock(false);
                 }}
               >
@@ -1077,6 +1198,23 @@ export const ShiftDetailScreen: React.FC = () => {
                   Отмена
                 </Button>
               </div>{' '}
+            </div>
+          </div>
+        )}
+        {activeModal === 'backupManager' && (
+          <div className={styles.modal}>
+            <div className={styles.modalContent} style={{ maxWidth: '90vw', maxHeight: '90vh' }}>
+              <div className={styles.modalTitle}>
+                <Text variant="display-2">Управление бэкапами</Text>
+              </div>
+              <div style={{ height: '70vh', overflow: 'auto' }}>
+                <BackupManager />
+              </div>
+              <div className={styles.modalButtons}>
+                <Button view="flat" size="xl" onClick={() => setActiveModal(null)}>
+                  Закрыть
+                </Button>
+              </div>
             </div>
           </div>
         )}

@@ -20,7 +20,9 @@ export { PackagingView } from './PackagingView';
 export { ScanningInterface } from './ScanningInterface';
 
 // Бэкапы
+export { default as BackupManager } from './BackupManager';
 export { BackupViewer } from './BackupViewer';
+export { default as BackupViewerNew } from './BackupViewer/BackupViewerNew';
 
 // UI компоненты
 export { AppHeader } from './AppHeader';

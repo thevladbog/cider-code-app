@@ -10,7 +10,6 @@ interface PackageVerificationModalProps {
   visible: boolean;
   onClose: () => void;
   onVerified: () => void;
-  onFinalizePacking?: () => Promise<void>; // Новый prop для финализации упаковки
   sscc: string;
   productCount: number;
   shift: IShiftScheme;
@@ -21,12 +20,14 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
   visible,
   onClose,
   onVerified,
-  onFinalizePacking,
   sscc,
   productCount,
   shift,
   isLoading = false,
 }) => {
+  console.log('PackageVerificationModal: NODE_ENV =', process.env.NODE_ENV);
+  console.log('PackageVerificationModal: visible =', visible);
+
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
   const [, setErrorMessage] = useState<string | null>(null);
@@ -36,8 +37,7 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
   const verifyingRef = useRef(false);
 
   // Extract complex expression to a variable for dependency array
-  const operatorId = shift.operatorId ?? undefined;
-  // Сбрасываем состояние при открытии/закрытии модального окна
+  const operatorId = shift.operatorId ?? undefined; // Сбрасываем состояние при открытии/закрытии модального окна
   useEffect(() => {
     if (visible) {
       setScannedCode(null);
@@ -46,37 +46,24 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
       setVerifyingCode(false);
       verifyingRef.current = false;
     }
-  }, [visible]);
-
-  // Обработчик сканирования с использованием useCallback
+  }, [visible]); // Обработчик сканирования с использованием useCallback
   const handleBarcodeScan = useCallback(
     async (barcode: string) => {
       // Предотвращаем повторное сканирование во время обработки
       if (verifyingRef.current) return;
-
-      console.log('Scanned SSCC code:', barcode);
+      console.log('🔍 SSCC barcode scanned:', barcode);
       setScannedCode(barcode);
       setVerifyingCode(true);
       verifyingRef.current = true;
 
       try {
         // Проверяем, соответствует ли отсканированный код ожидаемому
+        console.log('🔍 Verifying SSCC code...');
         const isValid = await verifySSCCCode(shift.id, barcode, sscc, operatorId);
-
+        console.log('🔍 Verification result:', isValid);
         setVerificationResult(isValid);
         if (isValid) {
-          // При успешной верификации финализируем упаковку (если функция передана)
-          if (onFinalizePacking) {
-            try {
-              await onFinalizePacking();
-              console.log('Packaging finalized successfully');
-            } catch (error) {
-              console.error('Error finalizing packaging:', error);
-              setErrorMessage('Ошибка при финализации упаковки');
-              setVerificationResult(false);
-              return;
-            }
-          }
+          console.log('✅ SSCC verification successful');
 
           // Автоматически закрываем модальное окно через 1.5 секунды
           setTimeout(() => {
@@ -94,10 +81,8 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
         verifyingRef.current = false;
       }
     },
-    [shift.id, sscc, operatorId, onVerified, onFinalizePacking]
-  );
-
-  // Подписываемся на события сканирования
+    [shift.id, sscc, operatorId, onVerified]
+  ); // Подписываемся на события сканирования
   useEffect(() => {
     if (!visible) return;
 
@@ -156,7 +141,6 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
                 Отсканируйте штрих-код с этикетки для подтверждения корректности упаковки
               </Text>
             </div>
-
             <div className={styles.packageInfo}>
               <div className={styles.packageInfoHeader}>
                 <Text variant="subheader-1">Информация об упаковке</Text>
@@ -187,7 +171,6 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
                 </div>
               </div>
             </div>
-
             {!scannedCode ? (
               <div className={styles.scanInstructions}>
                 <div className={styles.scanIcon}>📷</div>
@@ -225,8 +208,7 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
                   </div>
                 )}
               </div>
-            )}
-
+            )}{' '}
             <div className={styles.actions}>
               <Button view="flat" onClick={onClose}>
                 Отмена

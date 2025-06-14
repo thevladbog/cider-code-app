@@ -109,7 +109,11 @@ export async function packCurrentBoxAndGetNextSSCC(
 }> {
   const state = ssccState[shiftId];
 
+  console.log(`packCurrentBoxAndGetNextSSCC called for shift: ${shiftId}`);
+  console.log('Current SSCC state:', state);
+
   if (!state || !state.currentSSCC || !state.currentSSCCId) {
+    console.error(`SSCC состояние не инициализировано для смены ${shiftId}. State:`, state);
     throw new Error(`SSCC состояние не инициализировано для смены ${shiftId}`);
   }
 
@@ -132,13 +136,16 @@ export async function packCurrentBoxAndGetNextSSCC(
 
     // В ответе ssccCode - это уже следующий SSCC код для следующего короба
     const nextSSCC = packResponse.ssccCode;
+    const nextSSCCId = packResponse.id;
 
     console.log(`Packed box with SSCC: ${ssccForPrinting}, next box will use SSCC: ${nextSSCC}`);
 
     // Обновляем состояние для следующего короба
     state.currentSSCC = nextSSCC; // Новый SSCC для следующего короба
-    state.currentSSCCId = null; // Сбрасываем ID, так как новый SSCC еще не имеет ID в базе
+    state.currentSSCCId = nextSSCCId; // ID нового SSCC кода
     state.boxItemCount = 0; // Сбрасываем счетчик товаров
+
+    console.log('Updated SSCC state after packing:', state);
 
     return {
       packedSSCC: ssccForPrinting, // SSCC код упакованного короба (для печати)

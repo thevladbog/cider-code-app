@@ -5,6 +5,7 @@ import { useBackup, usePackagingWithVerification } from '@/app/hooks';
 import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
 import { DataMatrixData, IShiftScheme, ShiftStatus } from '@/app/types';
 import { formatGtin } from '@/app/utils';
+import BackupViewerNew from '../BackupViewer/BackupViewerNew';
 import { PackageVerificationModal } from '../PackageVerificationModal';
 
 import styles from './ScanningInterface.module.scss';
@@ -21,9 +22,9 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
   const [scanEnabled, setScanEnabled] = useState(true);
   const [showBackupError, setShowBackupError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [showBackupViewer, setShowBackupViewer] = useState(false);
   // Используем хук для бэкапа
-  const { backupProduct, backupError } = useBackup({
+  const { logError, backupError, savePackageToBackup } = useBackup({
     shiftId: shift.id,
     onBackupSuccess: (type, code) => {
       console.log(`Successfully backed up ${type} code: ${code}`);
@@ -35,7 +36,6 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
       setTimeout(() => setShowBackupError(false), 3000);
     },
   });
-
   // Используем новый хук для упаковки с верификацией
   const {
     isWaitingForVerification,
@@ -43,8 +43,8 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
     preparePackagingForVerification,
     finalizePendingPackaging,
     cancelPendingPackaging,
+    getPendingPackageData,
   } = usePackagingWithVerification();
-
   // Используем хук для сканирования с упаковкой
   const {
     lastScannedCode,
@@ -61,22 +61,54 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
     onScanSuccess: async (data: DataMatrixData) => {
       console.log('Successfully scanned:', data);
 
-      // Создаем уникальный ключ для кода
-      const codeKey = `${data.gtin}_${data.countryCode}${data.serialNumber}`;
+      // Код успешно отсканирован, данные хранятся во внутреннем состоянии сканера
+      // Сохранение в бэкап произойдет только в момент верификации упаковки
+      // через savePackageToBackup в handleVerificationSuccess
+    },
+    onScanError: async (message: string) => {
+      console.error('Scan error:', message);
 
-      // Сохраняем код в бэкап
-      await backupProduct(codeKey, {
+      // Логируем ошибку в бэкап
+      await logError('unknown_code', 'product', message, {
+        scanTime: new Date().toISOString(),
+        boxCode: currentBoxInfo?.currentSSCC || undefined,
+      });
+    },
+    onDuplicateScan: async (data: DataMatrixData) => {
+      console.log('Duplicate scan detected:', data);
+
+      // Логируем дублированное сканирование как ошибку
+      const codeKey = `${data.gtin}_${data.countryCode}${data.serialNumber}`;
+      await logError(codeKey, 'product', 'Дублированное сканирование', {
         gtin: data.gtin,
         countryCode: data.countryCode,
         serialNumber: data.serialNumber,
         verificationCode: data.verificationCode,
+        rawData: data.rawData,
         scanTime: new Date().toISOString(),
+        boxCode: currentBoxInfo?.currentSSCC || undefined,
+      });
+    },
+    onInvalidProduct: async (data: DataMatrixData) => {
+      console.log('Invalid product scanned:', data);
+
+      // Логируем неверный продукт как ошибку
+      const codeKey = `${data.gtin}_${data.countryCode}${data.serialNumber}`;
+      await logError(codeKey, 'product', 'Неверный продукт для данной смены', {
+        gtin: data.gtin,
+        countryCode: data.countryCode,
+        serialNumber: data.serialNumber,
+        verificationCode: data.verificationCode,
+        rawData: data.rawData,
+        scanTime: new Date().toISOString(),
+        boxCode: currentBoxInfo?.currentSSCC || undefined,
       });
     },
     onBoxPacked: async (packedSSCC: string, nextSSCC: string, itemCodes: string[]) => {
       console.log(`Box packed: ${packedSSCC}, next SSCC: ${nextSSCC}`);
 
       // Используем новый процесс упаковки с верификацией
+      // Сохранение в бэкап произойдет только в момент верификации
       try {
         const ssccForVerification = await preparePackagingForVerification(
           shift.id,
@@ -90,28 +122,38 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
         console.log(`Prepared packaging for verification: ${ssccForVerification}`);
       } catch (error) {
         console.error('Error preparing packaging for verification:', error);
+        // Логируем ошибку упаковки
+        await logError(packedSSCC, 'package', `Ошибка подготовки верификации: ${error}`, {
+          packedSSCC,
+          nextSSCC,
+          itemCodes,
+          errorTime: new Date().toISOString(),
+        });
       }
     },
-    onSSCCInitialized: (sscc: string) => {
-      console.log(`SSCC initialized: ${sscc}`);
+    onSSCCInitialized: async (sscc: string) => {
+      console.log('SSCC initialized:', sscc);
+
+      // SSCC инициализирован, но сохранение в бэкап произойдет
+      // только в момент верификации упаковки через savePackageToBackup
     },
   });
   // Оповещаем родительский компонент об изменении количества отсканированных кодов
   useEffect(() => {
     onScanCountUpdated?.(scannedCodes.length);
   }, [scannedCodes.length, onScanCountUpdated]);
-
   // Обработчик успешной верификации
   const handleVerificationSuccess = async () => {
+    console.log('=== handleVerificationSuccess called ===');
     try {
       const nextSSCC = await finalizePendingPackaging();
       console.log(`Packaging finalized. Next SSCC: ${nextSSCC}`);
+
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error finalizing packaging:', error);
     }
   };
-
   // Обработчик отмены верификации
   const handleVerificationCancel = () => {
     cancelPendingPackaging();
@@ -124,7 +166,6 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
       const timer = setTimeout(() => {
         resetScan();
       }, 3000);
-
       return () => clearTimeout(timer);
     }
   }, [scanMessage, resetScan]);
@@ -133,8 +174,7 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
     <div className={styles.scanningInterface}>
       <Card className={styles.scanningCard}>
         <div className={styles.scanningHeader}>
-          <Text variant="display-3">Сканирование продукции</Text>
-
+          <Text variant="display-3">Сканирование продукции</Text>{' '}
           <div className={styles.scanControls}>
             <Button
               view={scanEnabled ? 'action' : 'normal'}
@@ -143,9 +183,11 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
             >
               {scanEnabled ? 'Сканирование включено' : 'Сканирование отключено'}
             </Button>
-
             <Button view="flat" onClick={clearHistory} disabled={scannedCodes.length === 0}>
               Очистить историю
+            </Button>{' '}
+            <Button view="outlined" onClick={() => setShowBackupViewer(true)}>
+              📋 Просмотр бэкапа
             </Button>
           </div>
         </div>
@@ -224,7 +266,6 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
           </div>
         </div>
       </Card>
-
       {showBackupError && backupError && (
         <div className={styles.backupError}>
           <Text variant="body-1" className={styles.errorText}>
@@ -232,7 +273,6 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
           </Text>
         </div>
       )}
-
       {scannedCodes.length > 0 && (
         <Card className={styles.scanHistoryCard}>
           <Text variant="subheader-1" className={styles.scanHistoryTitle}>
@@ -277,19 +317,27 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
             </div>{' '}
           </div>
         </Card>
-      )}
-
+      )}{' '}
       {/* Модальное окно для верификации упаковки */}
       {isWaitingForVerification && pendingSSCC && (
         <PackageVerificationModal
           visible={isModalOpen}
           onClose={handleVerificationCancel}
           onVerified={handleVerificationSuccess}
-          onFinalizePacking={handleVerificationSuccess}
           sscc={pendingSSCC}
           productCount={currentBoxInfo?.maxBoxCount || 0}
           shift={shift}
         />
+      )}
+      {/* Модальное окно для просмотра бэкапа */}
+      {showBackupViewer && (
+        <div className={styles.backupViewerModal}>
+          <div className={styles.backupViewerOverlay} onClick={() => setShowBackupViewer(false)} />
+          <div className={styles.backupViewerContent}>
+            {' '}
+            <BackupViewerNew shiftId={shift.id} onClose={() => setShowBackupViewer(false)} />
+          </div>
+        </div>
       )}
     </div>
   );

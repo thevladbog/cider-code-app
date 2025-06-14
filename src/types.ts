@@ -21,7 +21,6 @@ export interface ElectronAPI {
   getSavedPrinter: () => Promise<PrinterSettings | null>;
   printBarcode: (barcode: string) => Promise<{ success: boolean; error?: string }>;
   printZpl: (zplCode: string) => Promise<{ success: boolean; error?: string }>;
-
   // Бэкап
   /* eslint-disable */
   saveCodeToBackup: (
@@ -30,13 +29,65 @@ export interface ElectronAPI {
     shiftId: string,
     additionalData?: any
   ) => Promise<{ success: boolean; error?: string }>;
+  logAction: (
+    code: string,
+    type: 'product' | 'package',
+    shiftId: string,
+    status: 'success' | 'error',
+    errorMessage?: string,
+    additionalData?: any
+  ) => Promise<{ success: boolean; error?: string }>;
   getBackupCodesByShift: (shiftId: string) => Promise<BackupItem[]>;
   getAllBackupFiles: () => Promise<
-    { fileName: string; filePath: string; size: number; modifiedDate: Date }[]
+    {
+      date: string;
+      shifts: {
+        shiftId: string;
+        hasGeneralLog: boolean;
+        hasSuccessfulScans: boolean;
+        generalLogSize?: number;
+        successfulScansSize?: number;
+        modifiedDate?: Date;
+      }[];
+    }[]
   >;
+  getSuccessfulScansContent: (shiftId: string) => Promise<string>;
+  restoreBackupData: (shiftId: string) => Promise<{
+    generalLog: BackupItem[];
+    successfulScans: string;
+    canRestore: boolean;
+  }>;
   exportBackup: (
     shiftId: string
   ) => Promise<{ success: boolean; error?: string; filePath?: string }>;
+  deleteBackup: (shiftId: string) => Promise<{ success: boolean; error?: string }>;
+  // Новые методы для работы с коробами в бэкапах
+  addSSCCToSuccessfulScans: (
+    ssccCode: string,
+    shiftId: string,
+    prepend?: boolean
+  ) => Promise<{ success: boolean; error?: string }>;
+  addProductToProductOnlyFile: (
+    productCode: string,
+    shiftId: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  removeBoxFromBackup: (
+    ssccCode: string,
+    productCodes: string[],
+    shiftId: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  reorderSuccessfulScans: (shiftId: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Новый метод для сохранения упаковки в момент верификации
+  savePackageToBackup: (
+    ssccCode: string,
+    productCodes: string[],
+    shiftId: string,
+    timestamp?: number
+  ) => Promise<{ success: boolean; error?: string }>;
+
+  // Тестовые методы
+  testSavePackage: (shiftId: string) => Promise<{ success: boolean; error?: string }>;
 
   // Методы интерфейса
   toggleFullscreen: () => Promise<boolean>;
@@ -147,6 +198,9 @@ export interface BackupItem {
   type: 'product' | 'package';
   timestamp: number;
   shiftId: string;
+  rawCode?: string; // Исходный raw код со всеми символами
+  status: 'success' | 'error'; // Статус обработки кода
+  errorMessage?: string; // Сообщение об ошибке (если есть)
   /* eslint-disable */
   additionalData?: any;
 }
@@ -188,8 +242,7 @@ export interface GenerateSSCCResponse {
 
 // Тип для упаковки с SSCC
 export interface PackageWithSSCC {
-  sscc: string; // SSCC код упаковки
-  items: string[]; // Коды продуктов внутри упаковки
+  sscc: string; // SSCC код упаковки  items: string[]; // Коды продуктов внутри упаковки
   timestamp: number; // Временная метка создания
   verifiedBy?: string; // Кто проверил (ID оператора)
   verifiedAt?: number; // Когда проверено

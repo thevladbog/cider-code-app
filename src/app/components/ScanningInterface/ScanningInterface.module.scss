@@ -212,4 +212,47 @@
     color: #666;
     word-break: break-all;
   }
+
+  // Стили для модального окна просмотра бэкапа
+  .backupViewerModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .backupViewerOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+  }
+
+  .backupViewerContent {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 1200px;
+    background: var(--g-color-base-background);
+    border-radius: 12px;
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+
+    [data-theme='dark'] & {
+      background: var(--g-color-base-background);
+      box-shadow:
+        0 20px 25px -5px rgba(0, 0, 0, 0.4),
+        0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    }
+  }
 }

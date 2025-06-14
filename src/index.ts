@@ -4,7 +4,23 @@ import path from 'path';
 
 import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
 
-import { saveCodeToBackup } from './backupService';
+import {
+  addProductToProductOnlyFile,
+  addSSCCToSuccessfulScans,
+  clearBackupFiles,
+  deleteBackup,
+  exportBackup,
+  getAllBackupFiles,
+  getBackupCodesByShift,
+  getSuccessfulScansContent,
+  logAction,
+  removeBoxFromBackup,
+  reorderSuccessfulScans,
+  restoreBackupData,
+  saveCodeToBackup,
+  savePackageToBackup,
+  testReorderLogic,
+} from './backupService';
 import {
   connectToPrinter,
   listPrinters,
@@ -337,56 +353,156 @@ ipcMain.handle(
   }
 );
 
-// Получение списка файлов бэкапов
-ipcMain.handle('get-backup-files', async () => {
-  try {
-    const backupDir = path.join(app.getPath('userData'), 'backups');
-
-    // Проверяем существование директории
-    if (!fs.existsSync(backupDir)) {
-      return [];
-    }
-
-    const files = fs
-      .readdirSync(backupDir)
-      .filter(file => file.endsWith('.json'))
-      .map(file => {
-        const filePath = path.join(backupDir, file);
-        const stats = fs.statSync(filePath);
-
-        return {
-          name: file,
-          path: filePath,
-          size: stats.size,
-          modifiedTime: stats.mtime.toISOString(),
-        };
-      });
-
-    return files;
-  } catch (error) {
-    console.error('Error getting backup files:', error);
-    return [];
+// Новый обработчик для логирования действий
+ipcMain.handle(
+  'log-action',
+  async (
+    _,
+    code: string,
+    type: 'product' | 'package',
+    shiftId: string,
+    status: 'success' | 'error',
+    errorMessage?: string,
+    additionalData?: unknown
+  ) => {
+    return logAction(code, type, shiftId, status, errorMessage, additionalData);
   }
+);
+
+// Получение кодов бэкапа для смены
+ipcMain.handle('get-backup-codes-by-shift', async (_, shiftId: string) => {
+  return getBackupCodesByShift(shiftId);
+});
+
+// Получение всех файлов бэкапов (новая структура)
+ipcMain.handle('get-all-backup-files', async () => {
+  return getAllBackupFiles();
+});
+
+// Получение содержимого файла успешных сканирований
+ipcMain.handle('get-successful-scans-content', async (_, shiftId: string) => {
+  return getSuccessfulScansContent(shiftId);
+});
+
+// Переупорядочивание файла успешных сканирований
+ipcMain.handle('reorder-successful-scans', async (_, shiftId: string) => {
+  return reorderSuccessfulScans(shiftId);
+});
+
+// Восстановление данных бэкапа
+ipcMain.handle('restore-backup-data', async (_, shiftId: string) => {
+  return restoreBackupData(shiftId);
 });
 
 // Экспорт бэкапа
-ipcMain.handle('export-backup', async (_, sourceFile: string) => {
+ipcMain.handle('export-backup', async (_, shiftId: string) => {
   try {
     const result = await dialog.showSaveDialog({
-      title: 'Экспорт резервной копии',
-      defaultPath: path.basename(sourceFile),
-      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+      title: 'Экспорт бэкапа',
+      defaultPath: `backup_${shiftId}`,
+      filters: [
+        { name: 'Архивы', extensions: ['zip'] },
+        { name: 'Все файлы', extensions: ['*'] },
+      ],
     });
 
     if (result.canceled || !result.filePath) {
-      return { success: false, reason: 'canceled' };
+      return { success: false, error: 'Export canceled' };
     }
 
-    fs.copyFileSync(sourceFile, result.filePath);
-
-    return { success: true, path: result.filePath };
+    const exportResult = exportBackup(shiftId, path.dirname(result.filePath));
+    return { ...exportResult, filePath: result.filePath };
   } catch (error) {
-    console.error('Error exporting backup:', error);
+    console.error('Error during backup export:', error);
     return { success: false, error: (error as Error).message };
   }
 });
+
+// Удаление бэкапа
+ipcMain.handle('delete-backup', async (_, shiftId: string) => {
+  return deleteBackup(shiftId);
+});
+
+// Добавление SSCC кода в файл успешных сканирований
+ipcMain.handle(
+  'add-sscc-to-successful-scans',
+  async (_, ssccCode: string, shiftId: string, prepend: boolean = false) => {
+    try {
+      const result = addSSCCToSuccessfulScans(ssccCode, shiftId, prepend);
+
+      // После добавления SSCC кода, переупорядочиваем файл для правильного порядка
+      if (result.success) {
+        reorderSuccessfulScans(shiftId);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error adding SSCC to successful scans:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+);
+
+// Добавление кода продукции в файл только с продукцией
+ipcMain.handle(
+  'add-product-to-product-only-file',
+  async (_, productCode: string, shiftId: string) => {
+    try {
+      addProductToProductOnlyFile(productCode, shiftId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding product to product-only file:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+);
+
+// Удаление короба из файлов бэкапа
+ipcMain.handle(
+  'remove-box-from-backup',
+  async (_, ssccCode: string, productCodes: string[], shiftId: string) => {
+    return removeBoxFromBackup(ssccCode, productCodes, shiftId);
+  }
+);
+
+// Сохранение упаковки в бэкап (новый подход - в момент верификации)
+ipcMain.handle(
+  'save-package-to-backup',
+  async (_, ssccCode: string, productCodes: string[], shiftId: string, timestamp?: number) => {
+    return savePackageToBackup(ssccCode, productCodes, shiftId, timestamp);
+  }
+);
+
+// Тестовая функция для отладки переупорядочивания (только в режиме разработки)
+if (process.env.NODE_ENV === 'development') {
+  ipcMain.handle('test-reorder-logic', async (_, shiftId: string) => {
+    try {
+      testReorderLogic(shiftId);
+      return { success: true };
+    } catch (error) {
+      console.error('Error testing reorder logic:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+  // Очистка файлов бэкапа для тестирования (только в режиме разработки)
+  ipcMain.handle('clear-backup-files', async (_, shiftId: string) => {
+    return clearBackupFiles(shiftId);
+  });
+  // Тестовая функция для отладки savePackageToBackup
+  ipcMain.handle('test-save-package', async (_, shiftId: string) => {
+    try {
+      const testSSCC = '046800899000003384';
+      const testProductCodes = [
+        '0104680089900239215WTFZuE93Y+oG',
+        '0104680089900239215WqZq"-93rP97',
+        '0104680089900239215GDl(EW93ya/A',
+      ];
+      const result = savePackageToBackup(testSSCC, testProductCodes, shiftId, Date.now());
+      console.log('Test savePackageToBackup result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error testing savePackageToBackup:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+}
