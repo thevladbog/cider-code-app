@@ -4,7 +4,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
-![Release](https://github.com/yourusername/cider-code-app/actions/workflows/release.yml/badge.svg)
+[![Release](https://github.com/thevladbog/cider-code-app/actions/workflows/release.yml/badge.svg?branch=release-stable)](https://github.com/thevladbog/cider-code-app/actions/workflows/release.yml)
 ![Electron](https://img.shields.io/badge/Electron-36.2.1-47848f.svg)
 ![React](https://img.shields.io/badge/React-19.1.0-61dafb.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-3178c6.svg)
