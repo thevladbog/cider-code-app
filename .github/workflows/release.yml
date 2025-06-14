@@ -89,6 +89,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+
       - name: Build application (Windows)
         if: matrix.os == 'windows-latest'
         env:
