@@ -21,14 +21,18 @@ interface UseBackupOptions {
 }
 
 interface UseBackupResult {
-  backupProduct: (code: string, additionalData?: any) => Promise<boolean>;
-  backupPackage: (sscc: string, additionalData?: any) => Promise<boolean>;
-  logAction: (code: string, action: string, additionalData?: any) => Promise<boolean>;
+  backupProduct: (code: string, additionalData?: Record<string, unknown>) => Promise<boolean>;
+  backupPackage: (sscc: string, additionalData?: Record<string, unknown>) => Promise<boolean>;
+  logAction: (
+    code: string,
+    action: string,
+    additionalData?: Record<string, unknown>
+  ) => Promise<boolean>;
   logError: (
     code: string,
     type: 'product' | 'package',
     errorMessage: string,
-    additionalData?: any
+    additionalData?: Record<string, unknown>
   ) => Promise<boolean>;
   loadBackupCodes: () => Promise<BackupItem[]>;
   exportBackup: () => Promise<boolean>;

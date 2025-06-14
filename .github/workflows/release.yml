@@ -5,10 +5,6 @@ on:
     branches:
       - release-beta
       - release-stable
-  pull_request:
-    branches:
-      - release-beta
-      - release-stable
 
 jobs:
   test:

@@ -1,10 +1,9 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
-export type ResetPasswordDto = {
-    userId: string;
-    password: string;
-    token: string;
-};
 
+export type ResetPasswordDto = {
+  userId: string;
+  password: string;
+  token: string;
+};

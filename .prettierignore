@@ -9,3 +9,4 @@ package-lock.json
 yarn.lock
 .git/
 *.log
+src/app/api/

@@ -5,7 +5,6 @@ import styles from './BackupViewer.module.scss';
 import { formatBackupTimestamp, groupBackupItemsByType } from '@/app/utils';
 import { useBackup } from '@/app/hooks';
 
-
 interface BackupViewerProps {
   shiftId: string;
 }
@@ -13,22 +12,22 @@ interface BackupViewerProps {
 export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'products' | 'packages'>('products');
-  
+
   const { loadBackupCodes, exportBackup, backupCodes } = useBackup({ shiftId });
-  
+
   // Группируем коды по типу
   const { products, packages } = groupBackupItemsByType(backupCodes);
-  
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       await loadBackupCodes();
       setIsLoading(false);
     };
-    
+
     loadData();
   }, [loadBackupCodes]);
-  
+
   const handleExport = async () => {
     const success = await exportBackup();
     if (success) {
@@ -37,21 +36,21 @@ export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
       alert('Не удалось экспортировать резервную копию');
     }
   };
-  
+
   return (
     <div className={styles.backupViewer}>
       <div className={styles.backupHeader}>
         <Text variant="subheader-1">Резервное копирование данных</Text>
-        
-        <Button 
-          view="outlined" 
+
+        <Button
+          view="outlined"
           onClick={handleExport}
           disabled={isLoading || backupCodes.length === 0}
         >
           Экспорт данных
         </Button>
       </div>
-      
+
       {isLoading ? (
         <div className={styles.loadingState}>
           <Spin size="l" />
@@ -61,37 +60,27 @@ export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
         </div>
       ) : backupCodes.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>
-            📂
-          </div>
-          <Text variant="subheader-1">
-            Нет сохраненных данных
-          </Text>
-          <Text variant="body-1">
-            Для этой смены еще не было создано резервных копий данных.
-          </Text>
+          <div className={styles.emptyIcon}>📂</div>
+          <Text variant="subheader-1">Нет сохраненных данных</Text>
+          <Text variant="body-1">Для этой смены еще не было создано резервных копий данных.</Text>
         </div>
       ) : (
         <>
           <div className={styles.tabsContainer}>
-            <div 
+            <div
               className={`${styles.tab} ${activeTab === 'products' ? styles.activeTab : ''}`}
               onClick={() => setActiveTab('products')}
             >
-              <Text variant="body-1">
-                Продукция ({products.length})
-              </Text>
+              <Text variant="body-1">Продукция ({products.length})</Text>
             </div>
-            <div 
+            <div
               className={`${styles.tab} ${activeTab === 'packages' ? styles.activeTab : ''}`}
               onClick={() => setActiveTab('packages')}
             >
-              <Text variant="body-1">
-                Упаковки ({packages.length})
-              </Text>
+              <Text variant="body-1">Упаковки ({packages.length})</Text>
             </div>
           </div>
-          
+
           {activeTab === 'products' && (
             <Card className={styles.backupTable}>
               <div className={styles.backupTableHeader}>
@@ -105,7 +94,7 @@ export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
                   <Text variant="body-2">Дополнительно</Text>
                 </div>
               </div>
-              
+
               <div className={styles.backupTableBody}>
                 {products.length === 0 ? (
                   <div className={styles.noData}>
@@ -121,8 +110,8 @@ export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
                         <Text variant="body-1">{formatBackupTimestamp(item.timestamp)}</Text>
                       </div>
                       <div className={styles.backupTableCell}>
-                        <Button 
-                          view="flat" 
+                        <Button
+                          view="flat"
                           size="s"
                           onClick={() => alert(JSON.stringify(item.additionalData, null, 2))}
                         >
@@ -135,7 +124,7 @@ export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
               </div>
             </Card>
           )}
-          
+
           {activeTab === 'packages' && (
             <Card className={styles.backupTable}>
               <div className={styles.backupTableHeader}>
@@ -152,7 +141,7 @@ export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
                   <Text variant="body-2">Действия</Text>
                 </div>
               </div>
-              
+
               <div className={styles.backupTableBody}>
                 {packages.length === 0 ? (
                   <div className={styles.noData}>
@@ -168,13 +157,11 @@ export const BackupViewer: React.FC<BackupViewerProps> = ({ shiftId }) => {
                         <Text variant="body-1">{formatBackupTimestamp(item.timestamp)}</Text>
                       </div>
                       <div className={styles.backupTableCell}>
-                        <Text variant="body-1">
-                          {item.additionalData?.items?.length || 0}
-                        </Text>
+                        <Text variant="body-1">{item.additionalData?.items?.length || 0}</Text>
                       </div>
                       <div className={styles.backupTableCell}>
-                        <Button 
-                          view="flat" 
+                        <Button
+                          view="flat"
                           size="s"
                           onClick={() => alert(JSON.stringify(item.additionalData, null, 2))}
                         >

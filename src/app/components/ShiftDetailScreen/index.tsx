@@ -280,7 +280,7 @@ export const ShiftDetailScreen: React.FC = () => {
       totalShiftScanned: 0,
       initialFactCount,
     });
-  }, [shift?.result]);
+  }, [shift?.result, initializeShiftForPacking]);
   // Обработчик успешной верификации SSCC
   const handleSSCCVerificationSuccess = useCallback(async () => {
     try {

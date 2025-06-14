@@ -39,8 +39,9 @@ export const ScanWithoutPackaging: React.FC<ScanWithoutPackagingProps> = ({
     try {
       await sendPendingCodes();
       setStatusMessage('Все накопленные коды отправлены');
-    } catch (error: any) {
-      setStatusMessage(`Ошибка отправки: ${error?.message || error}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      setStatusMessage(`Ошибка отправки: ${message}`);
     }
   }, [sendPendingCodes]);
 

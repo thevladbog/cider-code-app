@@ -3,10 +3,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CreatedOperatorDto = {
-    id: string;
-    name: string;
-    barcode: string | null;
-    created: any;
-    modified: any;
+  id: string;
+  name: string;
+  barcode: string | null;
+  created: any;
+  modified: any;
 };
-
