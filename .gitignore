@@ -93,3 +93,8 @@ out/
 
 # Semantic Release
 .semantic-release/
+
+# Test files
+test-build.js
+test-artifacts.js
+artifact-test-report.json
