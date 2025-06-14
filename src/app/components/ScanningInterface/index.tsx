@@ -22,9 +22,8 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
   const [scanEnabled, setScanEnabled] = useState(true);
   const [showBackupError, setShowBackupError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showBackupViewer, setShowBackupViewer] = useState(false);
-  // Используем хук для бэкапа
-  const { logError, backupError, savePackageToBackup } = useBackup({
+  const [showBackupViewer, setShowBackupViewer] = useState(false); // Используем хук для бэкапа
+  const { logError, backupError } = useBackup({
     shiftId: shift.id,
     onBackupSuccess: (type, code) => {
       console.log(`Successfully backed up ${type} code: ${code}`);
@@ -35,15 +34,13 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
       // Автоматически скрываем сообщение об ошибке через 3 секунды
       setTimeout(() => setShowBackupError(false), 3000);
     },
-  });
-  // Используем новый хук для упаковки с верификацией
+  }); // Используем новый хук для упаковки с верификацией
   const {
     isWaitingForVerification,
     pendingSSCC,
     preparePackagingForVerification,
     finalizePendingPackaging,
     cancelPendingPackaging,
-    getPendingPackageData,
   } = usePackagingWithVerification();
   // Используем хук для сканирования с упаковкой
   const {

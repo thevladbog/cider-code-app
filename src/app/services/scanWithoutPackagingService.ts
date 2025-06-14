@@ -6,7 +6,7 @@ import { updateCodesStatus } from '../api/queries';
  */
 
 // Функция для отправки кодов на сервер
-export const sendCodesToServer = async (data: UpdateCodesStatusDto): Promise<any> => {
+export const sendCodesToServer = async (data: UpdateCodesStatusDto): Promise<unknown> => {
   try {
     console.log('Sending codes to server:', data);
     const result = await updateCodesStatus(data);

@@ -336,7 +336,7 @@ export const useLogout = () => {
  */
 
 // Функция для обновления статуса кодов
-export const updateCodesStatus = async (data: UpdateCodesStatusDto): Promise<any> => {
+export const updateCodesStatus = async (data: UpdateCodesStatusDto): Promise<unknown> => {
   console.log('Updating codes status:', data);
   const result = await CodesService.codeControllerUpdateCodesStatus({
     requestBody: data,

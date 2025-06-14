@@ -3,11 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UpdateOrderToDeliveryDto = {
-    id: string;
-    orderNumber?: string;
-    deliveryDate?: any;
-    status?: 'NEW' | 'ARCHIVE';
-    consignee?: string;
-    address?: string;
+  id: string;
+  orderNumber?: string;
+  deliveryDate?: any;
+  status?: 'NEW' | 'ARCHIVE';
+  consignee?: string;
+  address?: string;
 };
-

@@ -1,9 +1,8 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-/* eslint-disable */
-export type PackedCodesResponseDto = {
-    id: number;
-    ssccCode: string;
-};
 
+export type PackedCodesResponseDto = {
+  id: number;
+  ssccCode: string;
+};

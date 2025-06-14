@@ -5,12 +5,7 @@
     "source.fixAll.eslint": "explicit",
     "source.organizeImports": "explicit"
   },
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ],
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
   "typescript.preferences.organizeImportsCollation": "ordinal",
   "typescript.preferences.organizeImportsIgnoreCase": "auto",
   "editor.rulers": [100],

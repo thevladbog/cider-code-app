@@ -134,14 +134,7 @@ export function useScannerWithoutPacking({
         setIsProcessing(false);
       }
     },
-    [
-      shift,
-      onBatchSent,
-      backupProduct,
-      logAction,
-      addProductToProductOnlyFile,
-      addProductCodeToSuccessfulScans,
-    ]
+    [shift, onBatchSent, backupProduct]
   );
 
   // Функция для запуска автоматической отправки с таймером

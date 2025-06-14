@@ -15,13 +15,10 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     icon: './icons/icon', // Путь к иконке без расширения (Electron автоматически выберет нужный формат)
-    // Don't prune native modules
+    // Don't prune native modules since we have serialport and usb dependencies
     prune: false,
-    // Ensure native modules are included
-    ignore: [
-      /^\/src\//,
-      /(.eslintrc.json)|(.gitignore)|(electron.vite.config.ts)|(forge.config.ts)|(tsconfig.*)/,
-    ],
+    // Remove manual ignore configuration - let Webpack plugin handle this automatically
+    // This prevents the "packaged app may be larger than expected" warning
   },
   rebuildConfig: {},
   makers: [

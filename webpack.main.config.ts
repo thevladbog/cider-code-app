@@ -2,7 +2,7 @@ import type { Configuration } from 'webpack';
 
 import { rules } from './webpack.rules';
 import { plugins } from './webpack.plugins';
-import { TsconfigPathsPlugin } from "tsconfig-paths-webpack-plugin";
+import { TsconfigPathsPlugin } from 'tsconfig-paths-webpack-plugin';
 
 export const mainConfig: Configuration = {
   /**
@@ -17,13 +17,13 @@ export const mainConfig: Configuration = {
   plugins,
   resolve: {
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.css', '.json'],
-    plugins: [new TsconfigPathsPlugin()]
+    plugins: [new TsconfigPathsPlugin()],
   },
   externals: {
-    'serialport': 'commonjs serialport',
-    'usb': 'commonjs usb',
+    serialport: 'commonjs serialport',
+    usb: 'commonjs usb',
     '@serialport/bindings-cpp': 'commonjs @serialport/bindings-cpp',
-    'bindings': 'commonjs bindings',
-    'node-addon-api': 'commonjs node-addon-api'
+    bindings: 'commonjs bindings',
+    'node-addon-api': 'commonjs node-addon-api',
   },
 };
