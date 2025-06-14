@@ -9,6 +9,17 @@
   padding: 0;
   margin: 0;
   overflow: hidden;
+
+  [data-theme='dark'] & {
+    background-color: #1a1a1a;
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
 }
 
 // Верхняя часть с информацией о смене
@@ -20,6 +31,11 @@
   background-color: #fff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   height: 80px;
+
+  [data-theme='dark'] & {
+    background-color: #2d3748;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
 }
 
 .productInfo {
@@ -31,12 +47,30 @@
 .titleRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  .titleLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 100%; /* Занимаем всю доступную высоту */
+  }
 }
 
 .backButton {
   padding: 8px;
   min-width: auto;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 40px; /* Фиксированная высота для точного выравнивания */
+  width: 40px; /* Фиксированная ширина для квадратной формы */
+  align-self: center; /* Выравнивание по центру относительно flex-контейнера */
+
+  svg {
+    width: 20px !important;
+    height: 20px !important;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
 }
 
 .shiftStats {
@@ -49,6 +83,109 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+}
+
+/* Адаптивные стили для заголовка */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .shiftStats {
+    flex-wrap: wrap;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .statItem,
+  .settingsItem {
+    align-items: flex-start;
+  }
+
+  .titleRow {
+    gap: 8px;
+  }
+
+  .backButton {
+    height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .shiftStats {
+    gap: 12px;
+  }
+
+  .statItem,
+  .settingsItem {
+    min-width: 120px;
+  }
+}
+
+/* Адаптивные стили для основного контейнера */
+@media (max-width: 1024px) {
+  .scanningContainer {
+    flex-direction: column;
+  }
+
+  .countersPanel {
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .controlsPanel {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .bigCounter {
+    font-size: 72px !important;
+  }
+
+  .secondaryCounters {
+    gap: 16px;
+  }
+
+  .counterIcon {
+    font-size: 28px;
+  }
+
+  .productionSettings {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 14px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bigCounter {
+    font-size: 56px !important;
+  }
+
+  .secondaryCounters {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .countersPanel {
+    padding: 16px;
+  }
+
+  .productionSettings {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 12px 16px;
+  }
+
+  .datePicker {
+    max-width: 100%;
+  }
 }
 
 // Основной контейнер со счетчиками и визуализацией
@@ -65,16 +202,22 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   border-right: 1px solid #e5e7eb;
   overflow-y: auto;
+
+  [data-theme='dark'] & {
+    background-color: #2d3748;
+    border-right-color: #4a5568;
+  }
 }
 
 .mainCounterContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 24px;
+  flex: 0 0 auto;
 }
 
 .mainCounter {
@@ -84,10 +227,14 @@
 }
 
 .bigCounter {
-  font-size: 72px !important;
-  line-height: 1.1 !important;
+  font-size: 96px !important; /* Увеличиваем с 72px до 96px */
+  line-height: 1 !important;
   font-weight: bold;
   color: #111827;
+
+  [data-theme='dark'] & {
+    color: #f7fafc;
+  }
 }
 
 .divider {
@@ -103,9 +250,33 @@
   text-align: center;
   margin-top: 8px;
   color: #4b5563;
+
+  [data-theme='dark'] & {
+    color: #9ca3af;
+  }
 }
 
-// Таблица с кодами в текущем коробе
+.secondaryCounters {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 16px 0;
+  flex: 0 0 auto;
+}
+
+.counterItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.counterIcon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+// Таблица с кодами в текущем коробе (теперь внизу)
 .currentBoxTable {
   flex: 1;
   display: flex;
@@ -119,7 +290,11 @@
   overflow-y: auto;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  max-height: 200px;
+  min-height: 200px;
+
+  [data-theme='dark'] & {
+    border-color: #4a5568;
+  }
 }
 
 .codesTable {
@@ -129,25 +304,6 @@
 
 .tableRow:nth-child(even) {
   background-color: #f9fafb;
-}
-
-.secondaryCounters {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  margin-top: auto;
-}
-
-.counterItem {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-}
-
-.counterIcon {
-  font-size: 36px;
-  margin-bottom: 8px;
 }
 
 // Правая панель с визуализацией и кнопками
@@ -175,14 +331,26 @@
   height: 40px;
   background-color: #e5e7eb;
   border-radius: 4px;
+
+  [data-theme='dark'] & {
+    background-color: #4a5568;
+  }
 }
 
 .boxItemScanned {
   background-color: #10b981;
+
+  [data-theme='dark'] & {
+    background-color: #68d391;
+  }
 }
 
 .boxItemError {
   background-color: #ef4444;
+
+  [data-theme='dark'] & {
+    background-color: #fc8181;
+  }
 }
 
 // Большая полоса прогресса
@@ -192,6 +360,10 @@
   border-radius: 12px;
   margin-bottom: 24px;
   overflow: hidden;
+
+  [data-theme='dark'] & {
+    background-color: #4a5568;
+  }
 }
 
 .progressFill {
@@ -199,6 +371,28 @@
   background-color: #10b981;
   border-radius: 12px;
   transition: width 0.3s ease;
+}
+
+// Прогресс бар смены
+.shiftProgressContainer {
+  margin-bottom: 24px;
+
+  .progressBar {
+    position: relative;
+    margin-top: 8px;
+  }
+}
+
+.progressText {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 14px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  z-index: 1;
 }
 
 // Кнопки управления
@@ -218,6 +412,60 @@
   gap: 8px;
 }
 
+.buttonContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.buttonContent svg {
+  flex-shrink: 0;
+}
+
+// Настройки производства
+.productionSettings {
+  padding: 16px 24px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+
+  [data-theme='dark'] & {
+    background-color: #2d3748;
+  }
+}
+
+.settingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.datePicker {
+  max-width: 200px;
+}
+
+.operatorInfo {
+  padding: 8px 12px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #374151;
+  font-weight: 500;
+
+  [data-theme='dark'] & {
+    background-color: #4a5568;
+    border-color: #718096;
+    color: #f7fafc;
+  }
+}
+
+.capacitySelector {
+  max-width: 300px;
+}
+
 // Строка сканирования внизу
 .scanBar {
   height: 80px;
@@ -227,11 +475,19 @@
   justify-content: center;
   align-items: center;
   padding: 0 24px;
+
+  [data-theme='dark'] & {
+    background-color: #374151;
+  }
 }
 
 .errorText {
   color: #ef4444;
   margin-top: 8px;
+
+  [data-theme='dark'] & {
+    color: #fc8181;
+  }
 }
 
 // Модальные окна
@@ -257,6 +513,32 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+
+  [data-theme='dark'] & {
+    background-color: #2d3748;
+  }
+
+  .modalTitle {
+    text-align: center;
+  }
+
+  .modalSubheader {
+    text-align: center;
+    padding: 0 16px;
+  }
+
+  .modalCode {
+    text-align: center;
+    padding: 16px;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+
+    [data-theme='dark'] & {
+      background-color: #4a5568;
+      border-color: #718096;
+    }
+  }
 }
 
 .modalButtons {
@@ -281,4 +563,8 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+
+  [data-theme='dark'] & {
+    background-color: #2d3748;
+  }
 }

@@ -72,9 +72,12 @@ export interface ElectronAPI {
   exportBackup: (
     shiftId: string
   ) => Promise<{ success: boolean; error?: string; filePath?: string }>;
-
   // Методы интерфейса
   toggleFullscreen: () => Promise<boolean>;
+  toggleKioskMode: () => Promise<boolean>;
+  minimizeWindow: () => Promise<void>;
+  maximizeWindow: () => Promise<void>;
+  closeWindow: () => Promise<void>;
   quitApp: () => Promise<void>;
   playSound: (soundName: string) => Promise<{ success: boolean; error?: string }>;
 }

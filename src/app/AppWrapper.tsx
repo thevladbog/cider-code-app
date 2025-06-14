@@ -9,7 +9,11 @@ import { ScanScreen } from './components/ScanScreen';
 import { ShiftDetailScreen } from './components/ShiftDetailScreen';
 import { ShiftsScreen } from './components/ShiftsScreen';
 import { initializeDevices } from './store/deviceStore';
-import { initializeSettings, setupSettingsListeners } from './store/settingsStore';
+import {
+  initializeSettings,
+  setupSettingsListeners,
+  useSettingsStore,
+} from './store/settingsStore';
 import './styles/global.scss';
 
 // Инициализируем OpenAPI перед запуском приложения
@@ -27,6 +31,7 @@ const queryClient = new QueryClient({
 
 function AppWrapper() {
   const [isInitialized, setIsInitialized] = useState(false);
+  const { uiSettings } = useSettingsStore();
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -45,7 +50,7 @@ function AppWrapper() {
 
   if (!isInitialized) {
     return (
-      <ThemeProvider theme="light">
+      <ThemeProvider theme={uiSettings.theme}>
         <div className="app-container loading">
           <div className="loading-spinner">
             <div>Загрузка приложения...</div>
@@ -56,7 +61,7 @@ function AppWrapper() {
   }
 
   return (
-    <ThemeProvider theme="light">
+    <ThemeProvider theme={uiSettings.theme}>
       <QueryClientProvider client={queryClient}>
         <Router>
           <div className="app-container">

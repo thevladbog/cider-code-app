@@ -209,6 +209,55 @@ ipcMain.handle('quit-app', () => {
   app.quit();
 });
 
+// Обработчики управления окном
+ipcMain.handle('toggle-kiosk-mode', () => {
+  console.log('Toggle kiosk mode called');
+  if (mainWindow) {
+    const isKiosk = mainWindow.isKiosk();
+    console.log('Current kiosk state:', isKiosk);
+    mainWindow.setKiosk(!isKiosk);
+    console.log('New kiosk state:', !isKiosk);
+    return !isKiosk;
+  }
+  console.log('No main window available');
+  return false;
+});
+
+ipcMain.handle('minimize-window', () => {
+  console.log('Minimize window called');
+  if (mainWindow) {
+    mainWindow.minimize();
+    console.log('Window minimized');
+  } else {
+    console.log('No main window available');
+  }
+});
+
+ipcMain.handle('maximize-window', () => {
+  console.log('Maximize window called');
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      console.log('Window is maximized, unmaximizing');
+      mainWindow.unmaximize();
+    } else {
+      console.log('Window is not maximized, maximizing');
+      mainWindow.maximize();
+    }
+  } else {
+    console.log('No main window available');
+  }
+});
+
+ipcMain.handle('close-window', () => {
+  console.log('Close window called');
+  if (mainWindow) {
+    mainWindow.close();
+    console.log('Window closed');
+  } else {
+    console.log('No main window available');
+  }
+});
+
 // Обработчик для воспроизведения звуков
 ipcMain.handle('play-sound', async (_, soundName: string) => {
   try {

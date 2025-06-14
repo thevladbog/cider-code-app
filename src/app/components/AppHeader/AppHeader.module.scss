@@ -1,0 +1,136 @@
+@use '../../styles/variables.scss';
+
+.appHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 variables.$spacing-md;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  user-select: none;
+  -webkit-app-region: drag; // Позволяет перетаскивать окно за заголовок
+
+  // Темная тема
+  [data-theme='dark'] & {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  }
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: variables.$spacing-sm;
+  flex: 1;
+}
+
+.centerSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: variables.$spacing-xs;
+  flex: 1;
+  justify-content: flex-end;
+  -webkit-app-region: no-drag; // Кнопки должны быть кликабельными
+}
+
+.headerButton {
+  min-width: 28px !important;
+  height: 28px !important;
+  border-radius: variables.$border-radius-sm !important;
+  transition: all 0.2s ease-in-out !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.windowControls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: variables.$spacing-sm;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  padding-left: variables.$spacing-sm;
+}
+
+.windowButton {
+  min-width: 28px !important;
+  height: 28px !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease-in-out !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.closeButton {
+  &:hover {
+    background-color: #ff5757 !important;
+    color: white !important;
+  }
+}
+
+// Адаптивные стили
+@media (max-width: 768px) {
+  .appHeader {
+    height: 44px;
+    padding: 0 variables.$spacing-sm;
+  }
+
+  .rightSection {
+    gap: 4px;
+  }
+
+  .headerButton {
+    min-width: 28px !important;
+    height: 28px !important;
+  }
+
+  .windowButton {
+    min-width: 24px !important;
+    height: 24px !important;
+  }
+}
+
+// Анимации
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.appHeader {
+  animation: slideDown 0.3s ease-out;
+}

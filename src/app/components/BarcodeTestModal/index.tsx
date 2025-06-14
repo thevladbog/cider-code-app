@@ -113,26 +113,22 @@ export const BarcodeTestModal: React.FC<BarcodeTestModalProps> = ({
       setLoading(false);
     }
   };
-
   return (
     <Modal open={visible} onOpenChange={onClose} aria-labelledby="barcode-test-modal-title">
       <div className={styles.barcodeModal}>
-        <Text variant="display-1" id="barcode-test-modal-title">
-          {type === 'scanner' ? 'Проверка сканера штрих-кодов' : 'Проверка принтера этикеток'}
-        </Text>
-
-        {type === 'printer' && (
-          <Text variant="body-1" style={{ marginTop: '16px' }}>
-            Штрих-код будет напечатан на принтере. Отсканируйте его, чтобы подтвердить работу
-            оборудования.
+        <div className={styles.title}>
+          <Text variant="display-2" id="barcode-test-modal-title">
+            {type === 'scanner' ? 'Проверка сканера штрих-кодов' : 'Проверка принтера этикеток'}
           </Text>
-        )}
+        </div>
 
-        {type === 'scanner' && (
-          <Text variant="body-1" style={{ marginTop: '16px' }}>
-            Отсканируйте этот штрих-код с помощью подключенного сканера.
+        <div className={styles.subheader}>
+          <Text variant="body-1" color="secondary">
+            {type === 'printer'
+              ? 'Штрих-код будет напечатан на принтере. Отсканируйте его, чтобы подтвердить работу оборудования.'
+              : 'Отсканируйте этот штрих-код с помощью подключенного сканера.'}
           </Text>
-        )}
+        </div>
 
         <div className={styles.barcodeImage}>
           <svg ref={svgRef}></svg>

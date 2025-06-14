@@ -174,6 +174,12 @@ export const initializeSettings = async () => {
 
 // Для сохранения UI настроек при их изменении
 export const setupSettingsListeners = () => {
+  // Применяем текущие настройки темы при запуске
+  const currentSettings = useSettingsStore.getState().uiSettings;
+  document.documentElement.setAttribute('data-theme', currentSettings.theme);
+  document.documentElement.setAttribute('data-font-size', currentSettings.fontSize);
+  document.body.setAttribute('data-theme', currentSettings.theme);
+
   // Подписываемся на изменения UI настроек
   useSettingsStore.subscribe(
     state => state.uiSettings,
@@ -183,6 +189,7 @@ export const setupSettingsListeners = () => {
 
       // Применяем тему
       document.documentElement.setAttribute('data-theme', uiSettings.theme);
+      document.body.setAttribute('data-theme', uiSettings.theme);
 
       // Применяем размер шрифта
       document.documentElement.setAttribute('data-font-size', uiSettings.fontSize);

@@ -1,4 +1,4 @@
-@use "sass:color";
+@use 'sass:color';
 @use '../../styles/variables.scss';
 
 .deviceItem {
@@ -10,22 +10,36 @@
   padding: variables.$spacing-md;
   margin-bottom: variables.$spacing-md;
   transition: variables.$transition-normal;
-  
+
   &Disconnected {
     background-color: #f9f9f9;
     border-color: variables.$border-color;
+
+    [data-theme='dark'] & {
+      background-color: #374151;
+      border-color: #4b5563;
+    }
   }
-  
+
   &Connected {
     background-color: #f0f9ff;
     border-color: color.adjust(variables.$primary-color, $lightness: 30%);
+
+    [data-theme='dark'] & {
+      background-color: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
   }
-  
+
   &Verified {
     background-color: #f0fdf4;
     border-color: color.adjust(variables.$success-color, $lightness: 30%);
+
+    [data-theme='dark'] & {
+      background-color: rgba(34, 197, 94, 0.1);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
   }
-  
   .deviceIcon {
     display: flex;
     align-items: center;
@@ -34,38 +48,66 @@
     height: 50px;
     font-size: 24px;
     color: variables.$gray-color;
-    
+
+    [data-theme='dark'] & {
+      color: #9ca3af;
+    }
+
     &Connected {
       color: variables.$primary-color;
+
+      [data-theme='dark'] & {
+        color: #60a5fa;
+      }
     }
-    
+
     &Verified {
       color: variables.$success-color;
+
+      [data-theme='dark'] & {
+        color: #4ade80;
+      }
     }
   }
-  
+
   .deviceInfo {
     flex: 1;
-    
+
     .deviceName {
       font-weight: 500;
       margin-bottom: variables.$spacing-xs;
+
+      [data-theme='dark'] & {
+        color: #f9fafb;
+      }
     }
-    
+
     .deviceStatus {
       font-size: 14px;
       color: variables.$gray-color;
-      
+
+      [data-theme='dark'] & {
+        color: #9ca3af;
+      }
+
       &Connected {
         color: variables.$primary-color;
+
+        [data-theme='dark'] & {
+          color: #60a5fa;
+        }
       }
-      
+
       &Verified {
         color: variables.$success-color;
+
+        [data-theme='dark'] & {
+          color: #4ade80;
+        }
       }
     }
   }
-  
+
   .deviceControls {
     display: flex;
     gap: variables.$spacing-sm;

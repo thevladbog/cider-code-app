@@ -151,10 +151,16 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
           </div>
         ) : (
           <>
-            <div className={styles.packageInfo}>
-              <Text variant="subheader-1" style={{ marginBottom: '8px' }}>
-                Информация об упаковке:
+            <div className={styles.subheader}>
+              <Text variant="body-1" color="secondary">
+                Отсканируйте штрих-код с этикетки для подтверждения корректности упаковки
               </Text>
+            </div>
+
+            <div className={styles.packageInfo}>
+              <div className={styles.packageInfoHeader}>
+                <Text variant="subheader-1">Информация об упаковке</Text>
+              </div>
 
               <div className={styles.packageCode}>{formatSSCC(sscc)}</div>
 

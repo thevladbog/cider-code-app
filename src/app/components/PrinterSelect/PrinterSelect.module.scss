@@ -7,12 +7,19 @@
   padding: variables.$spacing-lg;
   margin-bottom: variables.$spacing-lg;
 
+  [data-theme='dark'] & {
+    background-color: #374151;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.3),
+      0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  }
+
   &Container {
     display: flex;
     flex-direction: column;
     gap: variables.$spacing-md;
   }
-  
+
   .printerConfig {
     display: flex;
     flex-direction: column;
@@ -25,23 +32,30 @@
     align-items: flex-start;
     flex-wrap: wrap;
   }
-  
+
   .networkOptions {
     margin-top: variables.$spacing-md;
     display: flex;
     gap: variables.$spacing-md;
     align-items: center;
   }
-  
   .statusMessage {
     margin-top: variables.$spacing-md;
-    
+
     &Success {
       color: variables.$success-color;
+
+      [data-theme='dark'] & {
+        color: #4ade80;
+      }
     }
-    
+
     &Error {
       color: variables.$danger-color;
+
+      [data-theme='dark'] & {
+        color: #f87171;
+      }
     }
   }
 }

@@ -1,14 +1,14 @@
-import { Text, Spin, Card } from '@gravity-ui/uikit';
+import { Card, Spin, Text } from '@gravity-ui/uikit';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import styles from './ScanScreen.module.scss';
 import { useWorkplaceData } from '@/app/api/queries';
+import { AppHeader } from '../AppHeader';
 import { ScannerSelect } from '../ScannerSelect';
+import styles from './ScanScreen.module.scss';
 
 import logoImage from '@/assets/logo.svg';
 import scanImage from '@/assets/scan-image.svg';
-
 
 export const ScanScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -55,55 +55,53 @@ export const ScanScreen: React.FC = () => {
       setScannedCode(null);
     }
   }, [error]);
-
   return (
     <div className={styles.scanScreen}>
-      <Card className={styles.scanCard}>
-        <div className={styles.logoContainer}>
-          <img src={logoImage} alt="Company Logo" className={styles.logo} />
-        </div>
-
-        <Text variant="display-2" className={styles.title}>
-          Система контроля производства
-        </Text>
-
-        <ScannerSelect />
-
-        {isLoading ? (
-          <div className={styles.loadingContainer}>
-            <Spin size="l" />
-            <Text variant="body-1" className={styles.loadingText}>
-              Проверка рабочего места...
-            </Text>
+      <AppHeader />
+      <div className={styles.content}>
+        <Card className={styles.scanCard}>
+          <div className={styles.logoContainer}>
+            <img src={logoImage} alt="Company Logo" className={styles.logo} />
           </div>
-        ) : (
-          <div className={styles.scanContainer}>
-            <div className={styles.scanImageContainer}>
-              <img src={scanImage} alt="Scan barcode" className={styles.scanImage} />
-            </div>
-
-            <Text variant="display-3" className={styles.scanTitle}>
-              Отсканируйте карту доступа
-            </Text>
-
-            <Text variant="body-1" className={styles.scanDescription}>
-              Для входа в систему необходимо отсканировать штрих-код с карты доступа
-            </Text>
-
-            {scanError && (
-              <Text variant="body-1" className={styles.errorText}>
-                {scanError}
-              </Text>
-            )}
-          </div>
-        )}
-
-        <div className={styles.footer}>
-          <Text variant="caption-1" className={styles.footerText}>
-            © 2023 Ваша Компания. Все права защищены.
+          <Text variant="display-2" className={styles.title}>
+            Система контроля производства
           </Text>
-        </div>
-      </Card>
+          <ScannerSelect />
+          {isLoading ? (
+            <div className={styles.loadingContainer}>
+              <Spin size="l" />
+              <Text variant="body-1" className={styles.loadingText}>
+                Проверка рабочего места...
+              </Text>
+            </div>
+          ) : (
+            <div className={styles.scanContainer}>
+              <div className={styles.scanImageContainer}>
+                <img src={scanImage} alt="Scan barcode" className={styles.scanImage} />
+              </div>
+
+              <Text variant="display-3" className={styles.scanTitle}>
+                Отсканируйте карту доступа
+              </Text>
+
+              <Text variant="body-1" className={styles.scanDescription}>
+                Для входа в систему необходимо отсканировать штрих-код с карты доступа
+              </Text>
+
+              {scanError && (
+                <Text variant="body-1" className={styles.errorText}>
+                  {scanError}
+                </Text>
+              )}
+            </div>
+          )}{' '}
+          <div className={styles.footer}>
+            <Text variant="caption-1" className={styles.footerText}>
+              © 2023 Ваша Компания. Все права защищены.
+            </Text>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 };

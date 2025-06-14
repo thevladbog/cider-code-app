@@ -1,0 +1,49 @@
+@use '../../styles/variables.scss';
+
+.confirmModal {
+  .content {
+    padding: 0;
+    min-width: 400px;
+    max-width: 500px;
+  }
+
+  .header {
+    padding: variables.$spacing-lg variables.$spacing-lg variables.$spacing-md;
+    border-bottom: 1px solid var(--g-color-line-generic);
+  }
+
+  .title {
+    margin: 0;
+    color: var(--g-color-text-primary);
+  }
+
+  .body {
+    padding: variables.$spacing-lg;
+  }
+
+  .message {
+    color: var(--g-color-text-primary);
+    line-height: 1.5;
+  }
+
+  .footer {
+    display: flex;
+    gap: variables.$spacing-md;
+    justify-content: flex-end;
+    padding: variables.$spacing-md variables.$spacing-lg variables.$spacing-lg;
+    border-top: 1px solid var(--g-color-line-generic);
+  }
+}
+
+// Темная тема
+[data-theme='dark'] {
+  .confirmModal {
+    .header {
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .footer {
+      border-top-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+}

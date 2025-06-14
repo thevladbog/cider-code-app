@@ -2,12 +2,27 @@
 
 body {
   margin: 0;
+  padding: 0;
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
     'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: variables.$light-color;
+  overflow: hidden; // Убираем скролл на уровне body
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+
+  &[data-theme='dark'] {
+    background-color: #1a1a1a;
+    color: #f7fafc;
+  }
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
 }
 
 code {
@@ -17,7 +32,8 @@ code {
 .app-container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 
   &.loading {
     display: flex;
@@ -212,4 +228,36 @@ a {
   --g-color-text-link-hover: var(--g-color-private-brand-700-solid);
   --g-color-text-link-visited: var(--g-color-private-purple-700-solid);
   --g-color-text-link-visited-hover: var(--g-color-private-purple-850-solid);
+}
+
+// Общие стили для экранов с возможностью скролла
+.scrollable-screen {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+// Адаптивные утилиты
+.responsive-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 variables.$spacing-md;
+
+  @media (max-width: 768px) {
+    padding: 0 variables.$spacing-sm;
+  }
+}
+
+.responsive-grid {
+  display: grid;
+  gap: variables.$spacing-md;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr;
+    gap: variables.$spacing-sm;
+  }
 }

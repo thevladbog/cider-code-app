@@ -3,15 +3,36 @@
 .shiftsScreen {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: variables.$spacing-lg;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #f5f5f5;
 
+  [data-theme='dark'] & {
+    background-color: #1a1a1a;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: variables.$spacing-lg;
+    overflow: hidden;
+
+    // Адаптивные стили
+    @media (max-width: 768px) {
+      padding: variables.$spacing-md;
+    }
+
+    @media (max-width: 480px) {
+      padding: variables.$spacing-sm;
+    }
+  }
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: variables.$spacing-lg;
-
+    flex-shrink: 0;
     .title {
       font-weight: 500;
     }
@@ -20,28 +41,77 @@
       display: flex;
       gap: variables.$spacing-md;
       align-items: center;
+
+      // Адаптивные стили для кнопок
+      @media (max-width: 768px) {
+        flex-direction: column;
+        gap: variables.$spacing-sm;
+      }
+    }
+
+    .buttonWithIcon {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      text-align: center;
+
+      svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        vertical-align: middle;
+      }
+
+      // Дополнительные стили для лучшего выравнивания текста и иконок
+      span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        line-height: 1;
+      }
     }
   }
-
   .gridContainer {
     display: flex;
     flex-direction: column;
     flex: 1;
+    overflow: hidden;
 
     .gridHeader {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: variables.$spacing-md;
+      flex-shrink: 0;
+
+      // Адаптивные стили для мобильных
+      @media (max-width: 768px) {
+        flex-direction: column;
+        gap: variables.$spacing-sm;
+        align-items: flex-start;
+      }
     }
 
     .shiftsGrid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: variables.$spacing-lg;
-      margin-bottom: variables.$spacing-xl;
-    }
+      overflow-y: auto;
+      padding-bottom: variables.$spacing-md;
 
+      // Адаптивные стили
+      @media (max-width: 768px) {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: variables.$spacing-md;
+      }
+
+      @media (max-width: 480px) {
+        grid-template-columns: 1fr;
+        gap: variables.$spacing-sm;
+      }
+    }
     .noShifts {
       display: flex;
       flex-direction: column;
@@ -52,10 +122,18 @@
       border-radius: variables.$border-radius-md;
       text-align: center;
 
+      [data-theme='dark'] & {
+        background-color: #2a2a2a;
+      }
+
       .noShiftsIcon {
         font-size: 64px;
         color: variables.$gray-color;
         margin-bottom: variables.$spacing-md;
+
+        [data-theme='dark'] & {
+          color: #888;
+        }
       }
     }
   }
@@ -65,12 +143,15 @@
     justify-content: center;
     padding: variables.$spacing-xl;
   }
-
   .errorContainer {
     padding: variables.$spacing-lg;
     background-color: #fef2f2;
     border-radius: variables.$border-radius-md;
     margin-bottom: variables.$spacing-xl;
+
+    [data-theme='dark'] & {
+      background-color: #2d1b1b;
+    }
 
     .errorHeader {
       display: flex;

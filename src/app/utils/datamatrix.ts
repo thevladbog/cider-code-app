@@ -265,3 +265,15 @@ export function compareSSCCCodes(scannedSSCC: string, expectedSSCC: string): boo
 
   return normalizedScanned === normalizedExpected;
 }
+
+/**
+ * Форматирует число с разделителями тысяч для улучшения читабельности
+ *
+ * @param num - Число для форматирования
+ * @returns Отформатированная строка с разделителями тысяч
+ */
+export function formatNumber(num: number | null): string {
+  if (num === null || num === undefined) return 'Не указано';
+
+  return new Intl.NumberFormat('ru-RU').format(num);
+}

@@ -2,94 +2,116 @@
 
 .packagingView {
   padding: variables.$spacing-lg;
-  
+
   .packagingCard {
     margin-bottom: variables.$spacing-lg;
-    
+
     .packagingHeader {
       margin-bottom: variables.$spacing-lg;
     }
-    
+
     .progressContainer {
       display: flex;
       flex-direction: column;
       gap: variables.$spacing-md;
-      
+
       .progressInfo {
         display: flex;
         flex-direction: column;
         gap: variables.$spacing-sm;
-        
+
         .progressText {
           text-align: center;
         }
       }
     }
-    
     .errorText {
       color: variables.$danger-color;
       margin-top: variables.$spacing-sm;
+
+      [data-theme='dark'] & {
+        color: #fc8181;
+      }
     }
   }
-  
+
   .packagesCard {
     .packagesTitle {
       margin-bottom: variables.$spacing-md;
     }
-    
+
     .packagesList {
       display: flex;
       flex-direction: column;
       gap: variables.$spacing-sm;
-      
       .packageItem {
         display: flex;
         align-items: center;
         padding: variables.$spacing-md;
         border: 1px solid variables.$border-color;
         border-radius: variables.$border-radius-sm;
-        
+
         &:nth-child(even) {
           background-color: #f8fafc;
+
+          [data-theme='dark'] & {
+            background-color: #2a2a2a;
+          }
         }
-        
+
+        [data-theme='dark'] & {
+          border-color: #4a5568;
+        }
+
         .packageNumber {
           width: 40px;
           text-align: center;
         }
-        
+
         .packageSSCC {
           flex: 1;
-          
+
           .packageSSCCValue {
             font-family: monospace;
             font-weight: 500;
           }
-          
           .packageTimestamp {
             color: variables.$gray-color;
+
+            [data-theme='dark'] & {
+              color: #a0aec0;
+            }
           }
         }
-        
+
         .packageItems {
           padding: 0 variables.$spacing-md;
         }
-        
+
         .packageStatus {
           padding-left: variables.$spacing-md;
-          
           .verifiedStatus {
             background-color: #f0fdf4;
             color: variables.$success-color;
             padding: variables.$spacing-xs variables.$spacing-sm;
             border-radius: variables.$border-radius-sm;
+
+            [data-theme='dark'] & {
+              background-color: rgba(34, 197, 94, 0.1);
+              color: #68d391;
+            }
           }
-          
+
           .unverifiedStatus {
             background-color: #fef2f2;
             color: variables.$danger-color;
             padding: variables.$spacing-xs variables.$spacing-sm;
             border-radius: variables.$border-radius-sm;
+
+            [data-theme='dark'] & {
+              background-color: rgba(239, 68, 68, 0.1);
+              color: #fc8181;
+            }
           }
         }
       }

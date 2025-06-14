@@ -3,30 +3,38 @@
 .createShiftModal {
   padding: variables.$spacing-lg;
   max-width: 500px;
-  
+
   .title {
-    margin-bottom: variables.$spacing-lg;
+    margin-bottom: variables.$spacing-md;
     text-align: center;
   }
-  
+
+  .subheader {
+    text-align: center;
+    margin-bottom: variables.$spacing-lg;
+    padding: 0 variables.$spacing-md;
+  }
   .scanInstructions {
     display: flex;
     flex-direction: column;
     align-items: center;
     margin-bottom: variables.$spacing-lg;
-    
+
     .scanIcon {
       font-size: 64px;
       color: variables.$primary-color;
       margin-bottom: variables.$spacing-md;
+
+      [data-theme='dark'] & {
+        color: #63b3ed;
+      }
     }
-    
+
     .scanText {
       text-align: center;
       margin-bottom: variables.$spacing-sm;
     }
   }
-  
   .barcodeResult {
     display: flex;
     flex-direction: column;
@@ -35,25 +43,37 @@
     padding: variables.$spacing-md;
     border-radius: variables.$border-radius-md;
     margin-bottom: variables.$spacing-lg;
-    
+
+    [data-theme='dark'] & {
+      background-color: #2a2a2a;
+    }
+
     .barcodeValue {
       font-size: 24px;
       font-weight: 600;
       margin-bottom: variables.$spacing-sm;
+
+      [data-theme='dark'] & {
+        color: #f7fafc;
+      }
     }
-    
+
     .barcodeDescription {
       text-align: center;
+
+      [data-theme='dark'] & {
+        color: #a0aec0;
+      }
     }
   }
-  
+
   .actions {
     display: flex;
     justify-content: flex-end;
     gap: variables.$spacing-md;
     margin-top: variables.$spacing-lg;
   }
-  
+
   .loadingContainer {
     display: flex;
     flex-direction: column;
@@ -61,10 +81,13 @@
     justify-content: center;
     margin: variables.$spacing-xl 0;
   }
-  
   .errorMessage {
     color: variables.$danger-color;
     margin-top: variables.$spacing-md;
     text-align: center;
+
+    [data-theme='dark'] & {
+      color: #fc8181;
+    }
   }
 }

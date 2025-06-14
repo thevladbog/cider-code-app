@@ -2,84 +2,249 @@
 
 .scanScreen {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: variables.$spacing-lg;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
   background-color: #f5f5f5;
-  
+  overflow: hidden;
+
+  [data-theme='dark'] & {
+    background-color: #1a1a1a;
+  }
+
+  .content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: variables.$spacing-md;
+  }
   .scanCard {
     width: 100%;
     max-width: 600px;
-    padding: variables.$spacing-xl;
+    max-height: 100%;
+    padding: variables.$spacing-lg;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
+    overflow-y: auto; // Скролл только внутри карточки при необходимости
+    background-color: #fff;
+    border-radius: variables.$border-radius-lg;
+    box-shadow: variables.$box-shadow-md;
+
+    [data-theme='dark'] & {
+      background-color: #2d3748;
+      box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.3),
+        0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
   }
-  
   .logoContainer {
-    margin-bottom: variables.$spacing-lg;
-    
+    margin-bottom: variables.$spacing-md;
+    flex-shrink: 0; // Не сжимать логотип
+
     .logo {
-      max-width: 150px;
+      max-width: 120px;
       height: auto;
     }
   }
-  
+
   .title {
-    margin-bottom: variables.$spacing-xl;
+    margin-bottom: variables.$spacing-lg;
     color: variables.$primary-color;
+    flex-shrink: 0;
   }
-  
+
   .scanContainer {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: variables.$spacing-xl 0;
-    
+    margin: variables.$spacing-lg 0;
+    flex: 1;
+    justify-content: center;
+    min-height: 0; // Позволяет flex-детям сжиматься
+
     .scanImageContainer {
-      margin-bottom: variables.$spacing-lg;
-      
+      margin-bottom: variables.$spacing-md;
+      flex-shrink: 0;
+
       .scanImage {
-        width: 180px;
-        height: 180px;
+        width: 140px;
+        height: 140px;
       }
     }
-    
+
     .scanTitle {
-      margin-bottom: variables.$spacing-md;
+      margin-bottom: variables.$spacing-sm;
+      flex-shrink: 0;
     }
-    
+
     .scanDescription {
       max-width: 400px;
       color: variables.$gray-color;
-      margin-bottom: variables.$spacing-lg;
+      margin-bottom: variables.$spacing-md;
+      flex-shrink: 0;
     }
   }
-  
   .loadingContainer {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: variables.$spacing-xl 0;
-    
+    margin: variables.$spacing-lg 0;
+    flex: 1;
+    justify-content: center;
+
     .loadingText {
       margin-top: variables.$spacing-md;
       color: variables.$gray-color;
     }
   }
-  
+
   .errorText {
     color: variables.$danger-color;
-    margin-top: variables.$spacing-md;
+    margin-top: variables.$spacing-sm;
+    flex-shrink: 0;
   }
-  
+
   .footer {
-    margin-top: variables.$spacing-xl;
-    
+    margin-top: variables.$spacing-md;
+    flex-shrink: 0;
+
     .footerText {
       color: variables.$gray-color;
+      font-size: 0.75rem;
+    }
+  }
+
+  // Адаптивные стили для мобильных устройств
+  @media (max-height: 600px) {
+    padding: variables.$spacing-sm;
+
+    .scanCard {
+      padding: variables.$spacing-md;
+    }
+
+    .logoContainer {
+      margin-bottom: variables.$spacing-sm;
+
+      .logo {
+        max-width: 80px;
+      }
+    }
+
+    .title {
+      margin-bottom: variables.$spacing-md;
+    }
+
+    .scanContainer {
+      margin: variables.$spacing-md 0;
+
+      .scanImageContainer {
+        margin-bottom: variables.$spacing-sm;
+
+        .scanImage {
+          width: 100px;
+          height: 100px;
+        }
+      }
+
+      .scanTitle {
+        margin-bottom: variables.$spacing-xs;
+      }
+
+      .scanDescription {
+        margin-bottom: variables.$spacing-sm;
+        font-size: 0.875rem;
+      }
+    }
+
+    .loadingContainer {
+      margin: variables.$spacing-md 0;
+    }
+
+    .footer {
+      margin-top: variables.$spacing-sm;
+
+      .footerText {
+        font-size: 0.675rem;
+      }
+    }
+  }
+
+  // Адаптивные стили для узких экранов
+  @media (max-width: 480px) {
+    padding: variables.$spacing-sm;
+
+    .scanCard {
+      padding: variables.$spacing-md;
+      max-width: 100%;
+    }
+
+    .scanContainer {
+      .scanImageContainer {
+        .scanImage {
+          width: 120px;
+          height: 120px;
+        }
+      }
+
+      .scanDescription {
+        max-width: 100%;
+        padding: 0 variables.$spacing-sm;
+      }
+    }
+  }
+
+  // Стили для больших экранов
+  @media (min-height: 800px) {
+    .scanCard {
+      padding: variables.$spacing-xl;
+    }
+
+    .logoContainer {
+      margin-bottom: variables.$spacing-lg;
+
+      .logo {
+        max-width: 150px;
+      }
+    }
+
+    .title {
+      margin-bottom: variables.$spacing-xl;
+    }
+
+    .scanContainer {
+      margin: variables.$spacing-xl 0;
+
+      .scanImageContainer {
+        margin-bottom: variables.$spacing-lg;
+
+        .scanImage {
+          width: 180px;
+          height: 180px;
+        }
+      }
+
+      .scanTitle {
+        margin-bottom: variables.$spacing-md;
+      }
+
+      .scanDescription {
+        margin-bottom: variables.$spacing-lg;
+      }
+    }
+
+    .loadingContainer {
+      margin: variables.$spacing-xl 0;
+    }
+
+    .footer {
+      margin-top: variables.$spacing-xl;
+
+      .footerText {
+        font-size: 0.875rem;
+      }
     }
   }
 }

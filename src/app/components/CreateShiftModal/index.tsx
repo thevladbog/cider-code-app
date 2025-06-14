@@ -81,10 +81,17 @@ export const CreateShiftModal: React.FC<CreateShiftModalProps> = ({
 
   return (
     <Modal open={visible} onClose={onClose} aria-labelledby="create-shift-modal-title">
+      {' '}
       <div className={styles.createShiftModal}>
         <div className={styles.title}>
           <Text variant="display-2" id="create-shift-modal-title">
             Создание новой смены
+          </Text>
+        </div>
+
+        <div className={styles.subheader}>
+          <Text variant="body-1" color="secondary">
+            Отсканируйте штрих-код продукции для создания смены
           </Text>
         </div>
 

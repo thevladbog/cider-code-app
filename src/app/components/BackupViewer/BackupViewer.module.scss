@@ -2,69 +2,91 @@
 
 .backupViewer {
   margin-top: variables.$spacing-lg;
-  
+
   .backupHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: variables.$spacing-md;
   }
-  
   .tabsContainer {
     display: flex;
     margin-bottom: variables.$spacing-md;
     border-bottom: 1px solid variables.$border-color;
-    
+
+    [data-theme='dark'] & {
+      border-bottom-color: #4a5568;
+    }
+
     .tab {
       padding: variables.$spacing-sm variables.$spacing-md;
       cursor: pointer;
       transition: all 0.2s ease;
-      
+
       &:hover {
         background-color: #f8fafc;
+
+        [data-theme='dark'] & {
+          background-color: #2d3748;
+        }
       }
-      
+
       &.activeTab {
         font-weight: 500;
         border-bottom: 2px solid variables.$primary-color;
       }
     }
   }
-  
   .backupTable {
     border: 1px solid variables.$border-color;
     border-radius: variables.$border-radius-md;
     overflow: hidden;
-    
+
+    [data-theme='dark'] & {
+      border-color: #4a5568;
+    }
+
     .backupTableHeader {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr 1fr;
       background-color: #f8fafc;
       border-bottom: 1px solid variables.$border-color;
-      
+
+      [data-theme='dark'] & {
+        background-color: #2d3748;
+        border-bottom-color: #4a5568;
+      }
+
       .backupTableCell {
         padding: variables.$spacing-sm variables.$spacing-md;
         font-weight: 500;
       }
     }
-    
+
     .backupTableBody {
       max-height: 400px;
       overflow-y: auto;
-      
       .backupTableRow {
         display: grid;
         grid-template-columns: 2fr 1fr 1fr 1fr;
         border-bottom: 1px solid variables.$border-color;
-        
+
+        [data-theme='dark'] & {
+          border-bottom-color: #4a5568;
+        }
+
         &:last-child {
           border-bottom: none;
         }
-        
+
         &:nth-child(even) {
           background-color: #f8fafc;
+
+          [data-theme='dark'] & {
+            background-color: #2a2a2a;
+          }
         }
-        
+
         .backupTableCell {
           padding: variables.$spacing-sm variables.$spacing-md;
           overflow: hidden;
@@ -72,15 +94,17 @@
           white-space: nowrap;
         }
       }
-      
       .noData {
         padding: variables.$spacing-lg;
         text-align: center;
         color: variables.$gray-color;
+
+        [data-theme='dark'] & {
+          color: #a0aec0;
+        }
       }
     }
   }
-  
   .emptyState {
     display: flex;
     flex-direction: column;
@@ -90,14 +114,22 @@
     background-color: #f8fafc;
     border-radius: variables.$border-radius-md;
     text-align: center;
-    
+
+    [data-theme='dark'] & {
+      background-color: #2a2a2a;
+    }
+
     .emptyIcon {
       font-size: 48px;
       color: variables.$gray-color;
       margin-bottom: variables.$spacing-md;
+
+      [data-theme='dark'] & {
+        color: #a0aec0;
+      }
     }
   }
-  
+
   .loadingState {
     display: flex;
     flex-direction: column;

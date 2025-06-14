@@ -49,9 +49,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllBackupFiles: () => ipcRenderer.invoke('get-all-backup-files'),
 
   exportBackup: (shiftId: string) => ipcRenderer.invoke('export-backup', shiftId),
-
   // Методы интерфейса
   toggleFullscreen: () => ipcRenderer.invoke('toggle-fullscreen'),
+  toggleKioskMode: () => ipcRenderer.invoke('toggle-kiosk-mode'),
+  minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
+  maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
+  closeWindow: () => ipcRenderer.invoke('close-window'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
   playSound: (soundName: string) => ipcRenderer.invoke('play-sound', soundName),
 } as ElectronAPI); // Приводим к типу ElectronAPI
