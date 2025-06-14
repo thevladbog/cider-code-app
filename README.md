@@ -4,6 +4,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
+![Release](https://github.com/yourusername/cider-code-app/actions/workflows/release.yml/badge.svg)
 ![Electron](https://img.shields.io/badge/Electron-36.2.1-47848f.svg)
 ![React](https://img.shields.io/badge/React-19.1.0-61dafb.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-3178c6.svg)
@@ -197,21 +198,38 @@ yarn publish            # Публикация
 - Безопасная работа с USB и COM портами
 - Автоматическое резервное копирование
 
+## 🚀 Релизы
+
+Проект использует автоматическую систему релизов на основе [semantic-release](https://semantic-release.gitbook.io/):
+
+- **Бета-релизы**: создаются при мерже в ветку `release-beta`
+- **Продакшн релизы**: создаются при мерже в ветку `release-stable`
+
+### Формат релизов
+
+- `v1.0.1` - patch релиз (исправления)
+- `v1.1.0` - minor релиз (новые функции)
+- `v2.0.0` - major релиз (breaking changes)
+- `v1.1.0-beta.1` - бета релиз
+
+См. [RELEASE_GUIDE.md](RELEASE_GUIDE.md) для подробной информации.
+
 ## 🤝 Участие в разработке
 
 1. Fork репозитория
 2. Создайте feature branch (`git checkout -b feature/amazing-feature`)
 3. Внесите изменения и добавьте тесты
-4. Зафиксируйте изменения (`git commit -m 'Add amazing feature'`)
+4. Используйте [Conventional Commits](CONVENTIONAL_COMMITS.md) для сообщений
 5. Push в branch (`git push origin feature/amazing-feature`)
-6. Создайте Pull Request
+6. Создайте Pull Request в `main`
 
 ### Стандарты кода
 
 - Используется ESLint 9.x с современным flat config
 - Prettier для форматирования
 - TypeScript для типизации
-- Conventional Commits для сообщений коммитов
+- [Conventional Commits](https://www.conventionalcommits.org/) для сообщений коммитов
+- Semantic Release для автоматических релизов
 
 ## 📝 Лицензия
 

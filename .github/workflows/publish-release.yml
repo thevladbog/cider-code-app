@@ -1,0 +1,67 @@
+name: Publish Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload-release-assets:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application (Windows)
+        if: matrix.os == 'windows-latest'
+        run: npm run make:win
+
+      - name: Build application (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: npm run make:linux
+
+      - name: Build application (macOS)
+        if: matrix.os == 'macos-latest'
+        run: npm run make
+
+      - name: Upload Release Assets (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            out/make/**/*.exe
+            out/make/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            out/make/**/*.deb
+            out/make/**/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            out/make/**/*.dmg
+            out/make/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

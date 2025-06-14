@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# Semantic Release
+.semantic-release/

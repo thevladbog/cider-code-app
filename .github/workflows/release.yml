@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - release-beta
+      - release-stable
+  pull_request:
+    branches:
+      - release-beta
+      - release-stable
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run prettier check
+        run: npm run prettier
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run semantic-release
+
+  build:
+    needs: release
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push'
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application (Windows)
+        if: matrix.os == 'windows-latest'
+        run: npm run make:win
+
+      - name: Build application (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: npm run make:linux
+
+      - name: Build application (macOS)
+        if: matrix.os == 'macos-latest'
+        run: npm run make
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-app-${{ matrix.os }}
+          path: |
+            out/make/**/*
+            !out/make/**/*.zip
+            !out/make/**/*.deb
+            !out/make/**/*.rpm
+            !out/make/**/*.dmg
+            !out/make/**/*.exe
+
+      - name: Upload distributable artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: distributables-${{ matrix.os }}
+          path: |
+            out/make/**/*.zip
+            out/make/**/*.deb
+            out/make/**/*.rpm
+            out/make/**/*.dmg
+            out/make/**/*.exe
