@@ -50,7 +50,7 @@
     "@semantic-release/npm": "^11.0.2",
     "@semantic-release/release-notes-generator": "^12.1.0",
     "@types/react-dom": "^19.1.6",
-    "@vercel/webpack-asset-relocator-loader": "^1.6.0",
+    "@vercel/webpack-asset-relocator-loader": "^1.7.3",
     "cross-env": "^7.0.3",
     "css-loader": "^6.11.0",
     "electron": "36.2.1",
@@ -89,7 +89,9 @@
     "react-refresh": "^0.14.0",
     "react-router-dom": "^7.6.0",
     "serialport": "^10.5.0",
-    "usb": "^2.15.0",
     "zustand": "^5.0.5"
+  },
+  "optionalDependencies": {
+    "usb": "^2.15.0"
   }
 }

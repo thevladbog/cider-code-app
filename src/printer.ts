@@ -4,7 +4,15 @@ import * as net_socket from 'net';
 import { addDays, format } from 'date-fns';
 import { storeWrapper } from './store-wrapper';
 
-const usb = require('usb');
+// Import USB module with fallback for environments where it's not available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let usb: any = null;
+try {
+  usb = require('usb');
+} catch (error) {
+  console.warn('USB module not available:', error instanceof Error ? error.message : String(error));
+}
+
 const { SerialPort } = require('serialport');
 
 // Адаптированный тип для принтера
@@ -696,6 +704,12 @@ async function printZplToLocalPrinter(zplCode: string, printerName: string) {
 // Поиск доступных USB-принтеров
 function findUSBPrinters(): USBPrinter[] {
   try {
+    // Check if usb module is available
+    if (!usb) {
+      console.warn('USB module not available, skipping USB printer detection');
+      return [];
+    }
+
     const devices = usb.getDeviceList();
     const printers: USBPrinter[] = [];
 
