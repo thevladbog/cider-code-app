@@ -3,6 +3,8 @@
   "productName": "Bottle [CODE] App",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
   "version": "1.0.0-beta.4",
 =======
   "version": "1.0.0-beta.1",
@@ -10,6 +12,12 @@
 =======
   "version": "1.0.0-beta.2",
 >>>>>>> d4334f9 (chore(release): 1.0.0-beta.2 [skip ci])
+=======
+  "version": "1.0.0-beta.3",
+>>>>>>> a3efbb8 (chore(release): 1.0.0-beta.3 [skip ci])
+=======
+  "version": "1.0.0-beta.4",
+>>>>>>> c21f9cb (chore(release): 1.0.0-beta.4 [skip ci])
   "description": "Система агрегации в транспортные короба",
   "main": ".webpack/main",
   "scripts": {
