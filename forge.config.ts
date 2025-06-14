@@ -1,6 +1,5 @@
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerDMG } from '@electron-forge/maker-dmg';
-import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -13,6 +12,10 @@ import { rendererConfig } from './webpack.renderer.config';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
+// Debug log to check environment variables
+console.log('TARGET_PLATFORM:', process.env.TARGET_PLATFORM);
+console.log('process.platform:', process.platform);
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
@@ -24,10 +27,13 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
+    // Windows makers
     new MakerSquirrel({
       // iconUrl: 'https://example.com/icon.ico', // URL для установщика Windows (добавить когда будет .ico файл)
       // setupIcon: './icons/icon.ico', // Локальная иконка для установщика (добавить когда будет .ico файл)
     }),
+
+    // macOS makers
     new MakerZIP({}, ['darwin']),
     // DMG maker can only run on macOS, so we conditionally include it
     ...(process.platform === 'darwin'
@@ -37,16 +43,24 @@ const config: ForgeConfig = {
           }),
         ]
       : []),
-    new MakerRpm({
-      options: {
-        icon: './icons/icon.png',
-      },
-    }),
-    new MakerDeb({
-      options: {
-        icon: './icons/icon.png',
-      },
-    }),
+
+    // Linux makers - only include when building on Linux or when explicitly targeting Linux
+    ...(process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux'
+      ? [
+          new MakerDeb({
+            options: {
+              icon: './icons/icon.png',
+            },
+          }),
+          // RPM maker commented out due to CI environment compatibility issues
+          // If you need RPM support and your build environment supports it, uncomment:
+          // new MakerRpm({
+          //   options: {
+          //     icon: './icons/icon.png',
+          //   },
+          // }),
+        ]
+      : []),
   ],
   plugins: [
     new WebpackPlugin({
