@@ -11,13 +11,13 @@
   [data-theme='dark'] & {
     background-color: #1a1a1a;
   }
-
   .content {
     display: flex;
     align-items: center;
     justify-content: center;
     flex: 1;
     padding: variables.$spacing-md;
+    min-height: 0; // Позволяет правильно центрировать с учетом header
   }
   .scanCard {
     width: 100%;

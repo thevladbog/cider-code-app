@@ -14,6 +14,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    icon: './icons/icon', // Путь к иконке без расширения (Electron автоматически выберет нужный формат)
     // Don't prune native modules
     prune: false,
     // Ensure native modules are included
@@ -23,7 +24,22 @@ const config: ForgeConfig = {
     ],
   },
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({
+      // iconUrl: 'https://example.com/icon.ico', // URL для установщика Windows (добавить когда будет .ico файл)
+      // setupIcon: './icons/icon.ico', // Локальная иконка для установщика (добавить когда будет .ico файл)
+    }),
+    new MakerRpm({
+      options: {
+        icon: './icons/icon.png',
+      },
+    }),
+    new MakerDeb({
+      options: {
+        icon: './icons/icon.png',
+      },
+    }),
+  ],
   plugins: [
     new WebpackPlugin({
       mainConfig,

@@ -1,3 +1,4 @@
+import { Printer, QrCode } from '@gravity-ui/icons';
 import { Button, Text } from '@gravity-ui/uikit';
 import classNames from 'classnames';
 import React from 'react';
@@ -24,12 +25,12 @@ export const DeviceCheckItem: React.FC<DeviceCheckItemProps> = ({
   onConfigure,
   skipTest = false,
 }) => {
-  // Получаем имя иконки в зависимости от типа устройства
+  // Получаем иконку в зависимости от типа устройства
   const getDeviceIcon = () => {
     if (type === 'scanner') {
-      return '📷'; // Можно заменить на иконку из библиотеки
+      return <QrCode width={24} height={24} />;
     }
-    return '🖨️'; // Можно заменить на иконку из библиотеки
+    return <Printer width={24} height={24} />;
   };
   // Получаем текст статуса
   const getStatusText = () => {
