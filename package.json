@@ -1,7 +1,11 @@
 {
   "name": "bottle-code-app",
   "productName": "Bottle [CODE] App",
+<<<<<<< HEAD
   "version": "1.0.0-beta.4",
+=======
+  "version": "1.0.0-beta.1",
+>>>>>>> ce9f443 (chore(release): 1.0.0-beta.1 [skip ci])
   "description": "Система агрегации в транспортные короба",
   "main": ".webpack/main",
   "scripts": {
