@@ -18,6 +18,7 @@ export { ShiftsScreen } from './ShiftsScreen';
 export { PackageVerificationModal } from './PackageVerificationModal';
 export { PackagingView } from './PackagingView';
 export { ScanningInterface } from './ScanningInterface';
+export { ScanWithoutPackaging } from './ScanWithoutPackaging';
 
 // Бэкапы
 export { default as BackupManager } from './BackupManager';

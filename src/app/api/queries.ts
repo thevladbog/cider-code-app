@@ -10,12 +10,14 @@ import {
 import { clearOpenAPIToken, saveOpenAPIToken } from './apiClient';
 import {
   AuthenticationService,
+  CodesService,
   IShiftFindMany,
   OpenAPI,
   OperatorService,
   PackagingService,
   ShiftDto,
   ShiftService,
+  UpdateCodesStatusDto,
 } from './generated';
 
 /**
@@ -325,6 +327,41 @@ export const useLogout = () => {
       clearOpenAPIToken();
       queryClient.clear();
       localStorage.removeItem('workplaceData');
+    },
+  });
+};
+
+/**
+ * КОДЫ БЕЗ УПАКОВКИ
+ */
+
+// Функция для обновления статуса кодов
+export const updateCodesStatus = async (data: UpdateCodesStatusDto): Promise<any> => {
+  console.log('Updating codes status:', data);
+  const result = await CodesService.codeControllerUpdateCodesStatus({
+    requestBody: data,
+  });
+  return result;
+};
+
+// Хук для обновления статуса кодов
+export const useUpdateCodesStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateCodesStatus,
+    onSuccess: (data, variables) => {
+      console.log('Codes status updated successfully:', data);
+
+      // Инвалидируем кеш смены для обновления статистики
+      if (variables.shiftId) {
+        queryClient.invalidateQueries({
+          queryKey: ['shift', variables.shiftId],
+        });
+      }
+    },
+    onError: error => {
+      console.error('Failed to update codes status:', error);
     },
   });
 };

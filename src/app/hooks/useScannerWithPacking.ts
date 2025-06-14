@@ -224,7 +224,7 @@ export function useScannerWithPacking({
 
   // Подписываемся на события сканирования
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !window.electronAPI?.onBarcodeScanned) return;
 
     const unsubscribe = window.electronAPI.onBarcodeScanned(handleBarcodeScan);
     return unsubscribe;

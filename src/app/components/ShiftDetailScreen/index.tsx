@@ -3,6 +3,7 @@ import { DatePicker } from '@gravity-ui/date-components';
 import { DateTime, dateTimeParse } from '@gravity-ui/date-utils';
 import {
   ArrowLeft,
+  ArrowsRotateRight,
   CircleXmark,
   Database,
   Pause,
@@ -28,6 +29,7 @@ import { ShiftService } from '@/app/api/generated';
 import { useShift, useUpdateShiftStatus, useUserProfile } from '@/app/api/queries';
 import { useBackup } from '@/app/hooks/useBackup';
 import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
+import { useScannerWithoutPacking } from '@/app/hooks/useScannerWithoutPacking';
 import { DataMatrixData, ShiftStatus } from '@/app/types';
 import { formatGtin, formatNumber, formatSSCC } from '@/app/utils';
 import { compareSSCCCodes } from '@/app/utils/datamatrix';
@@ -69,25 +71,17 @@ export const ShiftDetailScreen: React.FC = () => {
       utterance.rate = 1.2;
       window.speechSynthesis.speak(utterance);
     }
-  }, []);
-  // Настройка нового хука для работы с упаковкой
-  const {
-    scannedCodes,
-    scanMessage,
-    scanError,
-    currentBoxInfo,
-    resetScan,
-    initializeShiftForPacking,
-    confirmBoxPacking,
-  } = useScannerWithPacking({
+  }, []); // Настройка хука для работы с упаковкой
+  const packingHookResult = useScannerWithPacking({
     shift: shift?.result || null,
     enabled:
       shift?.result?.status === 'INPROGRESS' && // Сканирование только при активной смене
+      shift?.result?.packing === true && // Только в режиме упаковки
       !activeModal &&
       !isPrinting, // Отключаем сканер при печати и в модальном окне
     onScanSuccess: (data: DataMatrixData) => {
-      // Обрабатываем успешное сканирование
-      handleCodeScanned(data);
+      // Обрабатываем успешное сканирование в режиме упаковки
+      handleCodeScannedWithPacking(data);
     },
     onScanError: async (message: string) => {
       // Показываем ошибку сканирования - негативный сценарий, озвучиваем
@@ -138,11 +132,97 @@ export const ShiftDetailScreen: React.FC = () => {
     },
   });
 
+  // Настройка хука для работы без упаковки
+  const nonPackingHookResult = useScannerWithoutPacking({
+    shift: shift?.result || null,
+    enabled:
+      shift?.result?.status === 'INPROGRESS' && // Сканирование только при активной смене
+      shift?.result?.packing === false && // Только в режиме без упаковки
+      !activeModal &&
+      !isPrinting, // Отключаем сканер при печати и в модальном окне
+    onScanSuccess: (data: DataMatrixData) => {
+      // Обрабатываем успешное сканирование в режиме без упаковки
+      handleCodeScannedWithoutPacking(data);
+    },
+    onScanError: async (message: string) => {
+      // Показываем ошибку сканирования - негативный сценарий, озвучиваем
+      setErrorIndex(scannedCodes.length);
+      setTimeout(() => setErrorIndex(null), 2000);
+      if (speakMessageRef.current) {
+        speakMessageRef.current('Ошибка сканирования');
+      }
+
+      // Логируем ошибку в бэкап
+      try {
+        await logError('', 'product', message, {
+          timestamp: new Date().toISOString(),
+          errorType: 'scan_error',
+        });
+      } catch (error) {
+        console.error('Failed to log scan error:', error);
+      }
+    },
+    onDuplicateScan: async (data: DataMatrixData) => {
+      // Обработка дубликата - негативный сценарий, озвучиваем
+      if (speakMessageRef.current) {
+        speakMessageRef.current('Дубликат');
+      }
+
+      // Логируем дубликат в бэкап
+      try {
+        await logError(data.rawData, 'product', 'Дубликат кода', {
+          gtin: data.gtin,
+          serialNumber: data.serialNumber,
+          timestamp: new Date().toISOString(),
+          errorType: 'duplicate_scan',
+        });
+      } catch (error) {
+        console.error('Failed to log duplicate error:', error);
+      }
+    },
+    onBatchSent: async (codes: string[], count: number) => {
+      // Коды успешно отправлены на сервер
+      console.log(`Batch of ${count} codes sent to server:`, codes);
+      if (speakMessageRef.current) {
+        speakMessageRef.current(`Отправлено ${count} кодов`);
+      }
+
+      // Логируем отправку в бэкап
+      try {
+        await logAction('', 'codes_sent_to_server', {
+          codes: codes,
+          count: count,
+          timestamp: new Date().toISOString(),
+          shiftId: shift?.result?.id,
+        });
+      } catch (error) {
+        console.error('Failed to log codes sent:', error);
+      }
+    },
+    batchSize: 1, // Отправляем коды по одному
+  });
+  // Выбираем нужный результат в зависимости от режима упаковки
+  const scannerHookResult = useCrates ? packingHookResult : nonPackingHookResult;
+
+  // Извлекаем общие значения из результата хука
+  const { scannedCodes, scanMessage, scanError, resetScan } = scannerHookResult;
+
+  // Извлекаем специфичные для упаковки значения
+  const currentBoxInfo =
+    useCrates && 'currentBoxInfo' in scannerHookResult ? scannerHookResult.currentBoxInfo : null;
+  const initializeShiftForPacking =
+    useCrates && 'initializeShiftForPacking' in scannerHookResult
+      ? scannerHookResult.initializeShiftForPacking
+      : null;
+  const confirmBoxPacking =
+    useCrates && 'confirmBoxPacking' in scannerHookResult
+      ? scannerHookResult.confirmBoxPacking
+      : null;
   // Обновляем refs при изменении функций
   useEffect(() => {
     initializeShiftRef.current = initializeShiftForPacking;
     speakMessageRef.current = speakMessage;
-  });
+  }, [initializeShiftForPacking, speakMessage]);
   const [scanStats, setScanStats] = useState({
     totalScanned: 0,
     currentBoxScanned: 0,
@@ -179,11 +259,9 @@ export const ShiftDetailScreen: React.FC = () => {
         }
       }
     }
-    setProductionDate(parsedDate);
-
-    // Если используется упаковка, инициализируем SSCC для смены
-    if (shouldUseCrates && shiftResult.status === 'INPROGRESS' && initializeShiftRef.current) {
-      initializeShiftRef.current().catch((error: unknown) => {
+    setProductionDate(parsedDate); // Если используется упаковка, инициализируем SSCC для смены
+    if (shouldUseCrates && shiftResult.status === 'INPROGRESS' && initializeShiftForPacking) {
+      initializeShiftForPacking().catch((error: unknown) => {
         console.error('Failed to initialize SSCC for shift:', error);
         if (speakMessageRef.current) {
           speakMessageRef.current('Ошибка инициализации упаковки');
@@ -228,10 +306,13 @@ export const ShiftDetailScreen: React.FC = () => {
         console.log('Package successfully saved to backup');
       } else {
         console.error('Failed to save package to backup');
+      } // Подтверждаем упаковку через API
+      if (confirmBoxPacking) {
+        const nextSSCC = await confirmBoxPacking(pendingSSCC, pendingItemCodes);
+        console.log('Box packing confirmed, next SSCC:', nextSSCC);
+      } else {
+        throw new Error('confirmBoxPacking is not available');
       }
-
-      // Подтверждаем упаковку через API
-      const nextSSCC = await confirmBoxPacking(pendingSSCC, pendingItemCodes);
 
       // Очищаем ожидающие данные
       setPendingSSCC(null);
@@ -245,14 +326,11 @@ export const ShiftDetailScreen: React.FC = () => {
         totalBoxes: prev.totalBoxes + 1,
         currentBoxScanned: 0,
       }));
-
       resetScan(); // Очищаем данные текущего скана через хук
 
       if (speakMessageRef.current) {
         speakMessageRef.current('Короб успешно упакован');
       }
-
-      console.log('Box packing confirmed, next SSCC:', nextSSCC);
     } catch (error) {
       console.error('Error confirming box packing:', error);
       if (speakMessageRef.current) {
@@ -269,7 +347,7 @@ export const ShiftDetailScreen: React.FC = () => {
 
   // Настройка сканера для модального окна
   useEffect(() => {
-    if (activeModal === 'verification' && pendingSSCC) {
+    if (activeModal === 'verification' && pendingSSCC && window.electronAPI?.onBarcodeScanned) {
       console.log('Setting up modal scanner for SSCC:', pendingSSCC);
 
       // Создаем новое подключение к сканеру для модального окна
@@ -397,8 +475,8 @@ export const ShiftDetailScreen: React.FC = () => {
       }
     },
     [shift, logAction, logError]
-  ); // Обработчик успешного сканирования (используется новым хуком)
-  const handleCodeScanned = useCallback(
+  ); // Обработчик успешного сканирования в режиме упаковки (используется хуком useScannerWithPacking)
+  const handleCodeScannedWithPacking = useCallback(
     async (data: DataMatrixData) => {
       // Обновляем счетчики на основе данных от хука
       setScanStats(prev => ({
@@ -415,6 +493,7 @@ export const ShiftDetailScreen: React.FC = () => {
           serialNumber: data.serialNumber,
           currentBoxCount: currentBoxInfo?.boxItemCount || 0,
           boxSSCC: currentBoxInfo?.currentSSCC || null,
+          mode: 'packing',
         });
       } catch (error) {
         console.error('Failed to log scan success:', error);
@@ -423,23 +502,49 @@ export const ShiftDetailScreen: React.FC = () => {
     [currentBoxInfo?.boxItemCount, currentBoxInfo?.currentSSCC, logAction]
   );
 
-  // Обработчик удаления текущего короба
+  // Обработчик успешного сканирования в режиме без упаковки (используется хуком useScannerWithoutPacking)
+  const handleCodeScannedWithoutPacking = useCallback(
+    async (data: DataMatrixData) => {
+      // Обновляем счетчики для режима без упаковки
+      setScanStats(prev => ({
+        ...prev,
+        totalScanned: prev.totalScanned + 1,
+        totalShiftScanned: prev.totalShiftScanned + 1, // Увеличиваем общий счетчик смены
+        currentBoxScanned: 0, // В режиме без упаковки нет текущего короба
+      }));
+
+      // Логируем успешное сканирование в бэкап
+      try {
+        await logAction(data.rawData, 'scan_success', {
+          gtin: data.gtin,
+          serialNumber: data.serialNumber,
+          mode: 'no_packing',
+          totalScannedInShift: scanStats.totalShiftScanned + 1,
+        });
+      } catch (error) {
+        console.error('Failed to log scan success:', error);
+      }
+    },
+    [logAction, scanStats.totalShiftScanned]
+  );
+  // Обработчик удаления текущего короба (только для режима упаковки)
   const handleDeleteCurrentBox = () => {
-    if ((currentBoxInfo?.boxItemCount || 0) > 0) {
+    if (useCrates && (currentBoxInfo?.boxItemCount || 0) > 0) {
       // Показать подтверждение
       setActiveModal('confirmDeleteBox');
     }
-  };
-  // Фактическое удаление текущего короба
+  }; // Фактическое удаление текущего короба (только для режима упаковки)
   const confirmDeleteCurrentBox = () => {
-    const deletedCount = currentBoxInfo?.boxItemCount || 0;
-    resetScan(); // Сбрасываем текущий скан через хук
-    setScanStats(prev => ({
-      ...prev,
-      totalScanned: prev.totalScanned - deletedCount,
-      totalShiftScanned: prev.totalShiftScanned - deletedCount, // Уменьшаем общий счетчик смены
-      currentBoxScanned: 0,
-    }));
+    if (useCrates) {
+      const deletedCount = currentBoxInfo?.boxItemCount || 0;
+      resetScan(); // Сбрасываем текущий скан через хук
+      setScanStats(prev => ({
+        ...prev,
+        totalScanned: prev.totalScanned - deletedCount,
+        totalShiftScanned: prev.totalShiftScanned - deletedCount, // Уменьшаем общий счетчик смены
+        currentBoxScanned: 0,
+      }));
+    }
     setActiveModal(null);
   };
   // Обработчик ручного закрытия короба
@@ -477,12 +582,22 @@ export const ShiftDetailScreen: React.FC = () => {
       setIsPrinting(false);
       setPrintLock(false);
     }
-  };
-  // Обработчик завершения смены
+  }; // Обработчик завершения смены
   const handleFinishShift = () => {
-    // Проверка, закрыт ли текущий короб
+    // Проверка, закрыт ли текущий короб в режиме упаковки
     if (useCrates && (currentBoxInfo?.boxItemCount || 0) > 0) {
       setActiveModal('confirmFinishWithOpenBox');
+      return;
+    }
+
+    // Проверка, есть ли неотправленные коды в режиме без упаковки
+    if (
+      !useCrates &&
+      'pendingCodes' in scannerHookResult &&
+      scannerHookResult.pendingCodes &&
+      scannerHookResult.pendingCodes.length > 0
+    ) {
+      setActiveModal('confirmFinishWithPendingCodes');
       return;
     }
 
@@ -736,7 +851,9 @@ export const ShiftDetailScreen: React.FC = () => {
       }
     },
     [shiftId, shift, queryClient]
-  ); // Колонки для таблицы кодов
+  );
+
+  // Колонки для таблицы кодов
   const columns = useMemo(
     () => [
       {
@@ -794,6 +911,7 @@ export const ShiftDetailScreen: React.FC = () => {
       </div>
     );
   }
+
   const product = shift.result.product;
   const boxCapacity = shift.result.countInBox || 0;
   const isPacking = shift.result.packing;
@@ -874,16 +992,21 @@ export const ShiftDetailScreen: React.FC = () => {
               <div className={styles.mainCounter}>
                 {' '}
                 <Text variant="display-1" className={styles.bigCounter}>
-                  {currentBoxInfo?.boxItemCount || 0}
-                  <span className={styles.divider}>/</span>
-                  <span className={styles.capacity}>{useCrates ? boxCapacity : '-'}</span>
+                  {useCrates ? (
+                    <>
+                      {currentBoxInfo?.boxItemCount || 0}
+                      <span className={styles.divider}>/</span>
+                      <span className={styles.capacity}>{boxCapacity}</span>
+                    </>
+                  ) : (
+                    scanStats.totalShiftScanned
+                  )}
                 </Text>
               </div>
               <Text variant="subheader-1" className={styles.counterCaption}>
-                {useCrates ? 'Отсканировано в текущем коробе' : 'Отсканировано единиц'}
+                {useCrates ? 'Отсканировано в текущем коробе' : 'Отсканировано в смене'}
               </Text>
-            </div>
-
+            </div>{' '}
             <div className={styles.secondaryCounters}>
               <div className={styles.counterItem}>
                 <div className={styles.counterIcon}>🍾</div>
@@ -898,8 +1021,15 @@ export const ShiftDetailScreen: React.FC = () => {
                   <Text variant="body-1">Закрыто коробов</Text>
                 </div>
               )}
-            </div>
 
+              {!useCrates && 'pendingCodes' in scannerHookResult && (
+                <div className={styles.counterItem}>
+                  <div className={styles.counterIcon}>📤</div>
+                  <Text variant="display-2">{scannerHookResult.pendingCodes?.length || 0}</Text>
+                  <Text variant="body-1">В очереди на отправку</Text>
+                </div>
+              )}
+            </div>
             {/* Таблица с кодами текущего короба */}
             <div className={styles.currentBoxTable}>
               <Text variant="subheader-2">Коды в текущем коробе:</Text>{' '}
@@ -996,7 +1126,7 @@ export const ShiftDetailScreen: React.FC = () => {
                   />
                 </div>
               )}
-            </div>
+            </div>{' '}
             {/* Кнопки управления */}
             <div className={styles.actionButtons}>
               {useCrates && (
@@ -1040,6 +1170,36 @@ export const ShiftDetailScreen: React.FC = () => {
                     </span>
                   </Button>{' '}
                 </>
+              )}
+              {/* Кнопка для отправки кодов в режиме без упаковки */}
+              {!useCrates && 'sendPendingCodes' in scannerHookResult && (
+                <Button
+                  view="action"
+                  size="xl"
+                  onClick={scannerHookResult.sendPendingCodes}
+                  disabled={
+                    scannerHookResult.pendingCodes?.length === 0 ||
+                    scannerHookResult.isProcessing ||
+                    printLock
+                  }
+                  loading={scannerHookResult.isProcessing}
+                  className={styles.actionButton}
+                >
+                  <span className={styles.buttonContent}>
+                    <ArrowsRotateRight />
+                    <span>
+                      {scannerHookResult.autoSendCountdown &&
+                      scannerHookResult.autoSendCountdown > 0
+                        ? `Отправка через ${scannerHookResult.autoSendCountdown}с`
+                        : `Отправить коды${
+                            scannerHookResult.pendingCodes &&
+                            scannerHookResult.pendingCodes.length > 0
+                              ? ` (${scannerHookResult.pendingCodes.length})`
+                              : ''
+                          }`}
+                    </span>
+                  </span>
+                </Button>
               )}{' '}
               <Button
                 view="outlined-info"
@@ -1178,7 +1338,7 @@ export const ShiftDetailScreen: React.FC = () => {
               </Button>
             </div>
           </div>
-        )}
+        )}{' '}
         {activeModal === 'confirmFinishWithOpenBox' && (
           <div className={styles.modal}>
             <div className={styles.modalContent}>
@@ -1193,6 +1353,48 @@ export const ShiftDetailScreen: React.FC = () => {
               <div className={styles.modalButtons}>
                 <Button view="action" size="xl" onClick={handleCloseBox}>
                   Завершить короб
+                </Button>
+                <Button view="flat" size="xl" onClick={() => setActiveModal(null)}>
+                  Отмена
+                </Button>
+              </div>{' '}
+            </div>
+          </div>
+        )}
+        {activeModal === 'confirmFinishWithPendingCodes' && (
+          <div className={styles.modal}>
+            <div className={styles.modalContent}>
+              <div className={styles.modalTitle}>
+                <Text variant="display-2">Неотправленные коды</Text>
+              </div>
+              <div className={styles.modalSubheader}>
+                <Text variant="body-1" color="secondary">
+                  У вас есть{' '}
+                  {('pendingCodes' in scannerHookResult &&
+                    scannerHookResult.pendingCodes?.length) ||
+                    0}{' '}
+                  неотправленных кодов. Отправить их перед закрытием смены?
+                </Text>
+              </div>
+              <div className={styles.modalButtons}>
+                <Button
+                  view="action"
+                  size="xl"
+                  onClick={async () => {
+                    if ('sendPendingCodes' in scannerHookResult) {
+                      try {
+                        await scannerHookResult.sendPendingCodes();
+                        setActiveModal(null);
+                        // После отправки завершаем смену
+                        handleFinishShift();
+                      } catch (error) {
+                        console.error('Failed to send pending codes:', error);
+                      }
+                    }
+                  }}
+                  loading={'isProcessing' in scannerHookResult && scannerHookResult.isProcessing}
+                >
+                  Отправить коды
                 </Button>
                 <Button view="flat" size="xl" onClick={() => setActiveModal(null)}>
                   Отмена
