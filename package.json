@@ -18,15 +18,21 @@
     "package": "npx electron-forge package",
     "make": "npx electron-forge make",
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b68edcd (fix: fixed linux release)
     "make:win": "cross-env TARGET_PLATFORM=win32 npx electron-forge make --platform=win32",
     "make:linux": "cross-env TARGET_PLATFORM=linux npx electron-forge make --platform=linux",
     "make:linux:deb": "cross-env TARGET_PLATFORM=linux DEB_ENABLED=true npx electron-forge make --platform=linux",
     "make:mac": "cross-env TARGET_PLATFORM=darwin npx electron-forge make --platform=darwin",
+<<<<<<< HEAD
 =======
     "make:win": "set TARGET_PLATFORM=win32 && npx electron-forge make --platform=win32",
     "make:linux": "set TARGET_PLATFORM=linux && npx electron-forge make --platform=linux",
     "make:mac": "set TARGET_PLATFORM=darwin && npx electron-forge make --platform=darwin",
 >>>>>>> a537ae1 (fix: fixed linux release)
+=======
+>>>>>>> b68edcd (fix: fixed linux release)
     "publish": "npx electron-forge publish",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
