@@ -155,6 +155,24 @@ export function isCodeAlreadyScanned(shiftId: string, code: string | DataMatrixD
   }
 }
 
+/**
+ * Удаляет конкретные коды из истории сканирования для смены
+ *
+ * @param shiftId - ID смены
+ * @param codesToRemove - Массив кодов для удаления
+ */
+export function removeCodesFromHistory(shiftId: string, codesToRemove: DataMatrixData[]): void {
+  const shiftScans = scanHistoryCache[shiftId];
+  if (!shiftScans) return;
+
+  for (const codeData of codesToRemove) {
+    const codeKey = createDataMatrixKey(codeData);
+    delete shiftScans[codeKey];
+  }
+
+  console.log(`🗑️ Removed ${codesToRemove.length} codes from scan history for shift ${shiftId}`);
+}
+
 // Функции для визуальных и звуковых оповещений
 
 /**

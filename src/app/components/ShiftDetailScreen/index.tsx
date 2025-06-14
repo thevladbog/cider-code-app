@@ -10,11 +10,14 @@ import {
   Play,
   Printer,
   TrashBin,
+  Xmark,
 } from '@gravity-ui/icons';
 import {
   Button,
   Card,
+  Icon,
   Label,
+  Modal,
   SegmentedRadioGroup,
   Spin,
   Switch,
@@ -537,13 +540,19 @@ export const ShiftDetailScreen: React.FC = () => {
   const confirmDeleteCurrentBox = () => {
     if (useCrates) {
       const deletedCount = currentBoxInfo?.boxItemCount || 0;
-      resetScan(); // Сбрасываем текущий скан через хук
+
+      // Сначала сбрасываем скан через хук (это обновит currentBoxInfo)
+      resetScan();
+
+      // Затем обновляем статистику на основе удаленного количества
       setScanStats(prev => ({
         ...prev,
         totalScanned: prev.totalScanned - deletedCount,
         totalShiftScanned: prev.totalShiftScanned - deletedCount, // Уменьшаем общий счетчик смены
-        currentBoxScanned: 0,
+        currentBoxScanned: 0, // Обнуляем счетчик текущего короба
       }));
+
+      console.log(`📦 Deleted current box with ${deletedCount} items. Stats updated.`);
     }
     setActiveModal(null);
   };
@@ -866,11 +875,17 @@ export const ShiftDetailScreen: React.FC = () => {
         id: 'gtin',
         name: 'GTIN',
         render: (item: DataMatrixData) => formatGtin(item.gtin),
+        width: 150,
       },
       {
         id: 'serialNumber',
         name: 'Серийный номер',
         render: (item: DataMatrixData) => item.serialNumber,
+      },
+      {
+        id: 'crypto',
+        name: 'Криптохвост',
+        render: (item: DataMatrixData) => item.verificationCode,
       },
     ],
     []
@@ -1300,28 +1315,40 @@ export const ShiftDetailScreen: React.FC = () => {
             </div>
           </div>
         )}{' '}
-        {activeModal === 'confirmDeleteBox' && (
-          <div className={styles.modal}>
-            <div className={styles.modalContent}>
-              <div className={styles.modalTitle}>
-                <Text variant="display-2">Подтверждение удаления</Text>
-              </div>
-              <div className={styles.modalSubheader}>
-                <Text variant="body-1" color="secondary">
-                  Вы уверены, что хотите удалить все отсканированные коды из текущего короба?
-                </Text>
-              </div>
-              <div className={styles.modalButtons}>
-                <Button view="outlined-danger" size="xl" onClick={confirmDeleteCurrentBox}>
-                  Удалить
-                </Button>
-                <Button view="flat" size="xl" onClick={() => setActiveModal(null)}>
-                  Отмена
-                </Button>
+        {/* Модальное окно подтверждения удаления короба */}
+        <Modal open={activeModal === 'confirmDeleteBox'} onClose={() => setActiveModal(null)}>
+          <div className={styles.modalContent}>
+            {' '}
+            <div className={styles.modalHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Icon
+                  data={TrashBin}
+                  size={20}
+                  className={`${styles.modalIcon} ${styles.danger}`}
+                />
+                <Text variant="header-2">Подтверждение удаления</Text>
               </div>
             </div>
+            <div className={styles.modalBody}>
+              <Text variant="body-1">
+                Вы уверены, что хотите удалить все отсканированные коды из текущего короба?
+              </Text>
+              <div style={{ marginTop: '12px' }}>
+                <Text variant="body-2" style={{ color: 'var(--g-color-text-danger)' }}>
+                  Это действие нельзя отменить.
+                </Text>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <Button view="flat" size="l" onClick={() => setActiveModal(null)}>
+                Отмена
+              </Button>
+              <Button view="outlined-danger" size="l" onClick={confirmDeleteCurrentBox}>
+                Удалить
+              </Button>
+            </div>
           </div>
-        )}{' '}
+        </Modal>{' '}
         {activeModal === 'scanToDelete' && (
           <div className={styles.modal}>
             <div className={styles.modalContent}>
@@ -1402,24 +1429,52 @@ export const ShiftDetailScreen: React.FC = () => {
               </div>{' '}
             </div>
           </div>
-        )}
-        {activeModal === 'backupManager' && (
-          <div className={styles.modal}>
-            <div className={styles.modalContent} style={{ maxWidth: '90vw', maxHeight: '90vh' }}>
-              <div className={styles.modalTitle}>
-                <Text variant="display-2">Управление бэкапами</Text>
-              </div>
-              <div style={{ height: '70vh', overflow: 'auto' }}>
-                <BackupManager />
-              </div>
-              <div className={styles.modalButtons}>
-                <Button view="flat" size="xl" onClick={() => setActiveModal(null)}>
-                  Закрыть
-                </Button>
-              </div>
+        )}{' '}
+        {/* Модальное окно управления бэкапами */}
+        <Modal open={activeModal === 'backupManager'} onClose={() => setActiveModal(null)}>
+          <div
+            style={{
+              minWidth: '90vw',
+              maxWidth: '1200px',
+              minHeight: '80vh',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {' '}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '24px 24px 16px',
+                borderBottom: '1px solid var(--g-color-line-generic)',
+              }}
+            >
+              <Icon data={Database} size={20} className={`${styles.modalIcon} ${styles.info}`} />
+              <Text variant="header-2">Управление бэкапами</Text>
+              <Button
+                view="flat"
+                size="s"
+                onClick={() => setActiveModal(null)}
+                style={{ marginLeft: 'auto' }}
+              >
+                <Icon data={Xmark} size={16} />
+              </Button>
+            </div>
+            <div
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                padding: '16px 24px 24px',
+              }}
+            >
+              <BackupManager />
             </div>
           </div>
-        )}
+        </Modal>
       </div>
     </div>
   );

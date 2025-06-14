@@ -2,11 +2,14 @@ import { useCallback, useState } from 'react';
 
 import { BackupItem } from '../types';
 import {
+  addProductCodeToSuccessfulScans,
   backupPackageCode,
   backupProductCode,
   exportShiftBackup,
+  getAllScannedCodesForShift,
   getBackupCodesForShift,
   getSuccessfulScansForShift,
+  isCodeScannedInShift,
   logActionToBackup,
   restoreShiftBackup,
 } from '../utils/backupHelpers';
@@ -44,7 +47,13 @@ interface UseBackupResult {
     productCodes: string[],
     shiftId: string,
     timestamp?: number
-  ) => Promise<boolean>;
+  ) => Promise<boolean>; // Новые методы для проверки уникальности кодов
+  checkCodeUniqueness: (
+    code: string
+  ) => Promise<{ isDuplicate: boolean; foundIn: 'backup' | null }>;
+  getAllScannedCodes: () => Promise<string[]>;
+  // Метод для добавления кода продукции в successful_scans.txt
+  addProductCodeToSuccessfulScans: (productCode: string) => Promise<boolean>;
   isBackingUp: boolean;
   backupError: string | null;
   backupCodes: BackupItem[];
@@ -366,7 +375,40 @@ export function useBackup({
     [shiftId, onBackupSuccess, onBackupError]
   );
 
+  /**
+   * Проверяет уникальность кода в рамках текущей смены
+   */
+  const checkCodeUniqueness = useCallback(
+    async (code: string) => {
+      return await isCodeScannedInShift(code, shiftId);
+    },
+    [shiftId]
+  );
+
+  /**
+   * Получает все отсканированные коды для текущей смены
+   */ const getAllScannedCodes = useCallback(async () => {
+    return await getAllScannedCodesForShift(shiftId);
+  }, [shiftId]);
+
+  /**
+   * Добавляет код продукции в файл successful_scans.txt
+   */
+  const addProductCodeToSuccessfulScansMethod = useCallback(
+    async (productCode: string) => {
+      try {
+        const result = await addProductCodeToSuccessfulScans(productCode, shiftId);
+        return result.success;
+      } catch (error) {
+        console.error('Error adding product code to successful scans:', error);
+        return false;
+      }
+    },
+    [shiftId]
+  );
+
   // reorderSuccessfulScans интегрирована в backupService
+
   return {
     backupProduct,
     backupPackage,
@@ -380,6 +422,9 @@ export function useBackup({
     addProductToProductOnlyFile,
     removeBoxFromBackup,
     savePackageToBackup,
+    checkCodeUniqueness,
+    getAllScannedCodes,
+    addProductCodeToSuccessfulScans: addProductCodeToSuccessfulScansMethod,
     isBackingUp,
     backupError,
     backupCodes,

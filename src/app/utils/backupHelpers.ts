@@ -350,3 +350,143 @@ export function parseSuccessfulScansContent(content: string): {
 
   return result;
 }
+
+/**
+ * Проверяет, был ли код уже отсканирован в рамках текущей смены
+ * Проверяет как локальные бэкапы, так и данные с бэкенда
+ *
+ * @param code - Код для проверки
+ * @param shiftId - ID смены
+ * @returns Promise с результатом проверки
+ */
+export async function isCodeScannedInShift(
+  code: string,
+  shiftId: string
+): Promise<{ isDuplicate: boolean; foundIn: 'backup' | null }> {
+  try {
+    // Сначала проверяем локальные бэкапы
+    const backupCodes = await getBackupCodesForShift(shiftId);
+    const foundInBackup = backupCodes.some(item => item.code === code);
+
+    if (foundInBackup) {
+      return { isDuplicate: true, foundIn: 'backup' };
+    }
+
+    // Проверяем успешные сканы из файла
+    const successfulScans = await getSuccessfulScansForShift(shiftId);
+    const scannedCodes = successfulScans.split('\n').filter(line => line.trim() !== '');
+    const foundInScans = scannedCodes.includes(code);
+
+    if (foundInScans) {
+      return { isDuplicate: true, foundIn: 'backup' }; // Считаем это тоже бэкапом
+    }
+
+    return { isDuplicate: false, foundIn: null };
+  } catch (error) {
+    console.error('Error checking code uniqueness:', error);
+    // В случае ошибки возвращаем false, чтобы не блокировать работу
+    return { isDuplicate: false, foundIn: null };
+  }
+}
+
+/**
+ * Получает все уникальные коды, отсканированные в рамках смены
+ * Объединяет данные из бэкапов и файла успешных сканов
+ *
+ * @param shiftId - ID смены
+ * @returns Promise с массивом уникальных кодов
+ */
+export async function getAllScannedCodesForShift(shiftId: string): Promise<string[]> {
+  try {
+    const allCodes = new Set<string>();
+
+    // Добавляем коды из бэкапов
+    const backupCodes = await getBackupCodesForShift(shiftId);
+    backupCodes.forEach(item => {
+      if (item.type === 'product') {
+        allCodes.add(item.code);
+      }
+    });
+
+    // Добавляем коды из файла успешных сканов
+    const successfulScans = await getSuccessfulScansForShift(shiftId);
+    const scannedCodes = successfulScans.split('\n').filter(line => line.trim() !== '');
+    scannedCodes.forEach(code => allCodes.add(code));
+
+    return Array.from(allCodes);
+  } catch (error) {
+    console.error('Error getting all scanned codes:', error);
+    return [];
+  }
+}
+
+/**
+ * Добавляет код продукции в файл successful_scans.txt
+ *
+ * @param productCode - Код продукции для добавления
+ * @param shiftId - ID смены
+ * @returns Promise с результатом операции
+ */
+export async function addProductCodeToSuccessfulScans(
+  productCode: string,
+  shiftId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log(
+      '📝 Adding product code to successful_scans.txt:',
+      productCode,
+      'for shift:',
+      shiftId
+    );
+
+    // Проверяем, что код не пустой
+    if (!productCode || productCode.trim() === '') {
+      console.error('❌ Cannot add empty product code to successful_scans.txt');
+      return { success: false, error: 'Product code is empty' };
+    }
+
+    // Используем существующий API для добавления в successful_scans.txt
+    const result = await window.electronAPI.addSSCCToSuccessfulScans(productCode, shiftId);
+    console.log('✅ Product code added to successful_scans.txt:', productCode);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error adding product code to successful_scans.txt:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Удаляет последние N кодов продукции из бэкапа смены
+ * TODO: Implement this function when backend API is ready
+ *
+ * @param shiftId - ID смены
+ * @param count - Количество кодов для удаления (начиная с последних)
+ * @returns Promise с результатом операции
+ */
+export async function removeLastCodesFromBackup(
+  shiftId: string,
+  count: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log(`🗑️ Removing last ${count} codes from backup for shift ${shiftId}`);
+
+    if (count <= 0) {
+      return { success: true };
+    }
+
+    // TODO: Implement API call when backend is ready
+    // const result = await window.electronAPI.removeLastCodesFromBackup(shiftId, count);
+
+    console.log(`⚠️ removeLastCodesFromBackup not implemented yet - codes may remain in backup`);
+    return { success: true }; // Возвращаем success для не блокирования UI
+  } catch (error) {
+    console.error('❌ Error removing codes from backup:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}

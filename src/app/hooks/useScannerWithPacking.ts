@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { checkDataMatrixCode, clearScanHistory, getScannedCodes } from '../services/scanService';
+import {
+  checkDataMatrixCode,
+  clearScanHistory,
+  getScannedCodes,
+  removeCodesFromHistory,
+} from '../services/scanService';
 import {
   addItemToCurrentBox,
   getCurrentBoxInfo,
   initializeSSCCForShift,
   isShiftInitializedForSSCC,
   packCurrentBoxAndGetNextSSCC,
+  resetCurrentBox,
 } from '../services/ssccService';
 import { DataMatrixData, IShiftScheme } from '../types';
 
@@ -255,7 +261,34 @@ export function useScannerWithPacking({
     setLastScannedCode(null);
     setScanMessage(null);
     setScanError(false);
-  }, []);
+
+    // Сбрасываем данные о текущем коробе
+    if (shift?.id) {
+      const currentBoxItemCount = currentBoxInfo?.boxItemCount || 0;
+
+      // Получаем коды текущего короба (последние N кодов)
+      const currentBoxCodes = scannedCodes.slice(-currentBoxItemCount);
+
+      // Удаляем коды текущего короба из истории сканирования
+      if (currentBoxCodes.length > 0) {
+        removeCodesFromHistory(shift.id, currentBoxCodes);
+      }
+
+      // Удаляем коды текущего короба из списка сканированных кодов в UI
+      if (currentBoxItemCount > 0) {
+        setScannedCodes(prev => prev.slice(0, -currentBoxItemCount));
+      }
+
+      resetCurrentBox(shift.id);
+      // Обновляем информацию о коробе в UI
+      const updatedBoxInfo = getCurrentBoxInfo(shift.id);
+      setCurrentBoxInfo(updatedBoxInfo);
+
+      console.log(
+        `🔄 Reset current box: removed ${currentBoxItemCount} items from scan history and UI`
+      );
+    }
+  }, [shift?.id, currentBoxInfo?.boxItemCount, scannedCodes]);
 
   // Очищаем историю сканирования для текущей смены
   const clearHistory = useCallback(() => {

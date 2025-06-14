@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CodesService } from '../api/generated';
 import { checkDataMatrixCode, clearScanHistory, getScannedCodes } from '../services/scanService';
 import { DataMatrixData, IShiftScheme } from '../types';
+import { useBackup } from './useBackup';
 
 interface UseScannerWithoutPackingOptions {
   shift: IShiftScheme | null;
@@ -51,6 +52,17 @@ export function useScannerWithoutPacking({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [autoSendCountdown, setAutoSendCountdown] = useState<number>(0);
 
+  // Инициализируем хук для работы с бэкапом
+  const {
+    checkCodeUniqueness,
+    backupProduct,
+    logAction,
+    addProductToProductOnlyFile,
+    addProductCodeToSuccessfulScans,
+  } = useBackup({
+    shiftId: shift?.id || '',
+  });
+
   // Рефы для таймера
   const autoSendTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,7 +99,23 @@ export function useScannerWithoutPacking({
           },
         });
 
-        console.log(`Successfully sent ${codes.length} codes to server`);
+        console.log(`📤 Successfully sent ${codes.length} codes to server`);
+
+        // Обновляем статус кодов в бэкапе (помечаем как отправленные)
+        console.log('📝 Updating backup status for sent codes...');
+        for (const code of codes) {
+          try {
+            await backupProduct(code, {
+              action: 'scan_without_packaging_sent',
+              timestamp: Date.now(),
+              shiftId: shift.id,
+              status: 'sent', // Помечаем как отправленный на сервер
+            });
+          } catch (backupError) {
+            console.error('Error updating backup status for code:', code, backupError);
+            // Продолжаем выполнение даже если обновление бэкапа не удалось
+          }
+        }
 
         // Убираем отправленные коды из pending
         setPendingCodes(prev => prev.filter(code => !codes.includes(code)));
@@ -106,7 +134,14 @@ export function useScannerWithoutPacking({
         setIsProcessing(false);
       }
     },
-    [shift, onBatchSent]
+    [
+      shift,
+      onBatchSent,
+      backupProduct,
+      logAction,
+      addProductToProductOnlyFile,
+      addProductCodeToSuccessfulScans,
+    ]
   );
 
   // Функция для запуска автоматической отправки с таймером
@@ -167,23 +202,51 @@ export function useScannerWithoutPacking({
     async (barcode: string) => {
       if (!shift || !enabled) return;
 
-      console.log('Scanned barcode:', barcode);
+      console.log('🔍 Scanning barcode without packaging:', barcode, 'for shift:', shift.id);
 
       // Проверяем отсканированный код
       const checkResult = checkDataMatrixCode(barcode, shift);
 
-      // Устанавливаем сообщение
-      setScanMessage(checkResult.message || null);
+      // Если код валидный и продукт правильный, дополнительно проверяем уникальность через бэкап
+      let isDuplicateInBackup = false;
+      if (
+        checkResult.isValid &&
+        checkResult.isCorrectProduct &&
+        !checkResult.isDuplicate &&
+        checkResult.data
+      ) {
+        try {
+          const uniquenessResult = await checkCodeUniqueness(checkResult.data.rawData);
+          isDuplicateInBackup = uniquenessResult.isDuplicate;
+
+          if (isDuplicateInBackup) {
+            console.log('Code found in backup, marking as duplicate');
+            setScanMessage('Код уже был отсканирован в этой смене (найден в бэкапе)');
+            setScanError(true);
+          }
+        } catch (error) {
+          console.error('Error checking code uniqueness:', error);
+          // При ошибке проверки продолжаем обработку как обычно
+        }
+      }
+
+      // Устанавливаем сообщение (если не было установлено выше)
+      if (!isDuplicateInBackup) {
+        setScanMessage(checkResult.message || null);
+      }
 
       // Обновляем состояние ошибки
       setScanError(
-        !checkResult.isValid || !checkResult.isCorrectProduct || checkResult.isDuplicate
+        !checkResult.isValid ||
+          !checkResult.isCorrectProduct ||
+          checkResult.isDuplicate ||
+          isDuplicateInBackup
       );
 
       if (checkResult.data) {
         setLastScannedCode(checkResult.data);
 
-        if (checkResult.isDuplicate) {
+        if (checkResult.isDuplicate || isDuplicateInBackup) {
           onDuplicateScan?.(checkResult.data);
         } else if (!checkResult.isCorrectProduct) {
           onInvalidProduct?.(checkResult.data);
@@ -192,8 +255,43 @@ export function useScannerWithoutPacking({
           setScannedCodes(getScanned());
           onScanSuccess?.(checkResult.data);
 
-          // Добавляем код в pending список
+          // Сохраняем код в бэкап сразу при успешном сканировании
           const rawCode = checkResult.data.rawData;
+
+          // Проверяем, что код не пустой
+          if (!rawCode || rawCode.trim() === '') {
+            console.error('❌ Cannot backup empty code');
+            return;
+          }
+
+          console.log('💾 Starting backup process for code:', rawCode);
+
+          try {
+            await backupProduct(rawCode, {
+              action: 'scan_without_packaging',
+              timestamp: Date.now(),
+              shiftId: shift.id,
+              status: 'scanned', // Помечаем как отсканированный, но не отправленный
+            });
+
+            // Дополнительное логирование действия
+            await logAction(rawCode, 'scanned_without_packaging', {
+              timestamp: Date.now(),
+              shiftId: shift.id,
+              productId: shift.product?.id,
+            }); // Сохраняем код в специальный файл для кодов без упаковки
+            await addProductToProductOnlyFile(rawCode);
+
+            // Добавляем код в файл successful_scans.txt
+            await addProductCodeToSuccessfulScans(rawCode);
+
+            console.log('✅ Code backed up successfully:', rawCode);
+          } catch (backupError) {
+            console.error('❌ Error backing up code after scan:', rawCode, backupError);
+            // Продолжаем выполнение даже если бэкап не удался
+          }
+
+          // Добавляем код в pending список
           setPendingCodes(prev => [...prev, rawCode]);
 
           // Проверяем, нужно ли отправить батч
@@ -232,6 +330,11 @@ export function useScannerWithoutPacking({
       startAutoSendTimer,
       stopAutoSendTimer,
       autoSendDelay,
+      checkCodeUniqueness,
+      backupProduct,
+      logAction,
+      addProductToProductOnlyFile,
+      addProductCodeToSuccessfulScans,
     ]
   );
 

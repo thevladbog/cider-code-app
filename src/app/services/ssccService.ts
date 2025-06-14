@@ -283,3 +283,20 @@ export function clearSSCCState(shiftId: string): void {
 export function isShiftInitializedForSSCC(shiftId: string): boolean {
   return !!ssccState[shiftId];
 }
+
+/**
+ * Сбрасывает текущий короб для смены (очищает содержимое, но оставляет SSCC)
+ */
+export function resetCurrentBox(shiftId: string): void {
+  const state = ssccState[shiftId];
+
+  if (!state) {
+    console.warn(`SSCC state not found for shift ${shiftId}`);
+    return;
+  }
+
+  // Сбрасываем только счетчик товаров в коробе, SSCC остается тем же
+  state.boxItemCount = 0;
+
+  console.log(`Reset current box for shift ${shiftId}. Box item count: 0`);
+}

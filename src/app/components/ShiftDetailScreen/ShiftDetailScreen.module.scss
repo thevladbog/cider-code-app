@@ -505,66 +505,72 @@
 }
 
 .modalContent {
-  background-color: #fff;
-  padding: 32px;
-  border-radius: 8px;
-  width: 80%;
+  background: var(--g-color-base-background);
+  border-radius: 12px;
   max-width: 500px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  width: 90vw;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
 
   [data-theme='dark'] & {
-    background-color: #2d3748;
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.4),
+      0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.modalHeader {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid var(--g-color-line-generic);
+}
+
+.modalBody {
+  padding: 24px;
+}
+
+.modalFooter {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--g-color-line-generic);
+  background: var(--g-color-base-generic);
+}
+
+.modalIcon {
+  width: 20px;
+  height: 20px;
+
+  &.danger {
+    color: var(--g-color-text-danger);
   }
 
-  .modalTitle {
-    text-align: center;
+  &.info {
+    color: var(--g-color-text-info);
+  }
+}
+
+/* Responsive design для модальных окон */
+@media (max-width: 768px) {
+  .modalContent {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
   }
 
-  .modalSubheader {
-    text-align: center;
-    padding: 0 16px;
-  }
-
-  .modalCode {
-    text-align: center;
+  .modalHeader,
+  .modalBody {
     padding: 16px;
-    background-color: #f8fafc;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-
-    [data-theme='dark'] & {
-      background-color: #4a5568;
-      border-color: #718096;
-    }
   }
-}
 
-.modalButtons {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
+  .modalFooter {
+    padding: 12px 16px 16px;
+    flex-direction: column-reverse;
 
-// Контейнеры для загрузки и ошибок
-.loaderContainer,
-.errorContainer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  width: 100%;
-}
-
-.errorCard {
-  padding: 32px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-
-  [data-theme='dark'] & {
-    background-color: #2d3748;
+    button {
+      width: 100%;
+    }
   }
 }
