@@ -10,3 +10,5 @@ yarn.lock
 .git/
 *.log
 src/app/api/
+.vite/
+dist_*/

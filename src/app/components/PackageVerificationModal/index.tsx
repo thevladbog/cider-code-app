@@ -25,7 +25,7 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
   shift,
   isLoading = false,
 }) => {
-  console.log('PackageVerificationModal: NODE_ENV =', process.env.NODE_ENV);
+  console.log('PackageVerificationModal: DEV =', import.meta.env.DEV);
   console.log('PackageVerificationModal: visible =', visible);
 
   const [scannedCode, setScannedCode] = useState<string | null>(null);

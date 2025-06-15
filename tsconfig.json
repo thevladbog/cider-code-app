@@ -3,15 +3,16 @@
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "allowJs": true,
-    "module": "commonjs",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "noImplicitAny": true,
     "sourceMap": true,
     "outDir": "dist",
-    "moduleResolution": "node",
     "resolveJsonModule": true,
+    "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
@@ -22,8 +23,31 @@
     "strict": true,
     "noEmit": false,
     "incremental": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client", "node"],
+    "verbatimModuleSyntax": false,
+    "moduleDetection": "force"
   },
-  "include": ["src/**/*", "typings.d.ts", "src/global.d.ts"],
-  "exclude": ["node_modules", "dist", ".webpack"]
+  "include": [
+    "src/index.ts",
+    "src/preload.ts",
+    "src/backupService.ts",
+    "src/printer.ts",
+    "src/serialPortConfig.ts",
+    "src/store-wrapper.ts",
+    "src/types.ts",
+    "typings.d.ts",
+    "src/global.d.ts"
+  ],
+  "exclude": [
+    "src/app/**/*",
+    "src/renderer.ts",
+    "src/index.html",
+    "src/components/**/*",
+    "dist",
+    "out",
+    "renderer",
+    "vite.*.config.ts",
+    "node_modules"
+  ]
 }

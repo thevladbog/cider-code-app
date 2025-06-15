@@ -15,14 +15,16 @@ root.render(
   </React.StrictMode>
 );
 
-// Hot Module Replacement для React компонентов
-if (module.hot) {
-  module.hot.accept('./AppWrapper', () => {
-    const NextAppWrapper = require('./AppWrapper').default;
-    root.render(
-      <React.StrictMode>
-        <NextAppWrapper />
-      </React.StrictMode>
-    );
+// Vite Hot Module Replacement
+if (import.meta.hot) {
+  import.meta.hot.accept('./AppWrapper', newModule => {
+    if (newModule) {
+      const NextAppWrapper = newModule.default;
+      root.render(
+        <React.StrictMode>
+          <NextAppWrapper />
+        </React.StrictMode>
+      );
+    }
   });
 }
