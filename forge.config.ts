@@ -25,11 +25,14 @@ const config: ForgeConfig = {
     // Remove manual ignore configuration - let Webpack plugin handle this automatically
     // This prevents the "packaged app may be larger than expected" warning
     executableName: 'bottle-code-app', // Явно указываем имя исполняемого файла
+    // Настраиваем имя приложения для разных платформ
+    name: 'bottle-code-app',
   },
   rebuildConfig: {},
   makers: [
     // Windows makers
     new MakerSquirrel({
+      name: 'bottle-code-app',
       // iconUrl: 'https://example.com/icon.ico', // URL для установщика Windows (добавить когда будет .ico файл)
       // setupIcon: './icons/icon.ico', // Локальная иконка для установщика (добавить когда будет .ico файл)
     }),
@@ -40,6 +43,7 @@ const config: ForgeConfig = {
     ...(process.platform === 'darwin'
       ? [
           new MakerDMG({
+            name: 'bottle-code-app',
             icon: './icons/icon.png',
           }),
         ]
@@ -50,6 +54,7 @@ const config: ForgeConfig = {
       ? [
           new MakerDeb({
             options: {
+              name: 'bottle-code-app',
               icon: './icons/icon.png',
               bin: 'bottle-code-app', // Явно указываем имя исполняемого файла
             },
@@ -58,6 +63,7 @@ const config: ForgeConfig = {
           // If you need RPM support and your build environment supports it, uncomment:
           // new MakerRpm({
           //   options: {
+          //     name: 'bottle-code-app',
           //     icon: './icons/icon.png',
           //   },
           // }),

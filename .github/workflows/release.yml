@@ -71,24 +71,52 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "=== Starting semantic-release ==="
-          npm run semantic-release
-          echo "=== Semantic-release completed ==="
+          echo "Current branch: $(git branch --show-current)"
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
 
-          # Получаем значения переменных окружения после semantic-release
-          echo "=== Checking environment variables ==="
-          echo "NEW_RELEASE_PUBLISHED=${NEW_RELEASE_PUBLISHED:-false}"
-          echo "NEW_RELEASE_VERSION=${NEW_RELEASE_VERSION:-}"
-          echo "NEW_RELEASE_GIT_TAG=${NEW_RELEASE_GIT_TAG:-}"
+          # Запускаем semantic-release и сохраняем вывод
+          set +e
+          output=$(npm run semantic-release 2>&1)
+          exit_code=$?
+          set -e
+
+          echo "$output"
+
+          echo "=== Semantic-release completed with exit code: $exit_code ==="
+
+          # Парсим вывод semantic-release для получения информации о релизе
+          new_release_published="false"
+          new_release_version=""
+          new_release_tag=""
+
+          if echo "$output" | grep -q "Published release"; then
+            new_release_published="true"
+            # Извлекаем версию из строки типа "Published release 1.0.0-beta.10 on beta channel"
+            new_release_version=$(echo "$output" | grep "Published release" | sed -n 's/.*Published release \([^ ]*\) on.*/\1/p')
+            new_release_tag="v${new_release_version}"
+            echo "✅ New release detected: $new_release_version"
+          elif echo "$output" | grep -q "Created tag"; then
+            new_release_published="true"
+            # Извлекаем тег из строки типа "Created tag v1.0.0-beta.10"
+            new_release_tag=$(echo "$output" | grep "Created tag" | sed -n 's/.*Created tag \([^ ]*\).*/\1/p')
+            new_release_version=$(echo "$new_release_tag" | sed 's/^v//')
+            echo "✅ New release tag detected: $new_release_tag"
+          else
+            echo "ℹ️  No new release was published"
+          fi
+
+          echo "=== Release Information ==="
+          echo "Published: $new_release_published"
+          echo "Version: $new_release_version"
+          echo "Tag: $new_release_tag"
 
           # Устанавливаем outputs для GitHub Actions
-          echo "new_release_published=${NEW_RELEASE_PUBLISHED:-false}" >> $GITHUB_OUTPUT
-          echo "new_release_version=${NEW_RELEASE_VERSION:-}" >> $GITHUB_OUTPUT
-          echo "new_release_git_tag=${NEW_RELEASE_GIT_TAG:-}" >> $GITHUB_OUTPUT
+          echo "new_release_published=$new_release_published" >> $GITHUB_OUTPUT
+          echo "new_release_version=$new_release_version" >> $GITHUB_OUTPUT
+          echo "new_release_git_tag=$new_release_tag" >> $GITHUB_OUTPUT
 
-          echo "=== Outputs set ==="
-          echo "Released: ${NEW_RELEASE_PUBLISHED:-false}"
-          echo "Version: ${NEW_RELEASE_VERSION:-}"
-          echo "Tag: ${NEW_RELEASE_GIT_TAG:-}"
+          echo "=== Outputs configured ==="
 
       - name: Format code after release
         run: |
@@ -118,7 +146,7 @@ jobs:
             
             # Коммитим изменения
             git add .
-            git commit -m "style: auto-format code after release [skip ci]"
+            git commit -m "fix(style): auto-format code after release [skip ci]"
             
             # Пушим изменения с retry логикой
             echo "🚀 Pushing formatting changes..."
@@ -262,6 +290,17 @@ jobs:
           echo ""
           echo "=== Target distributables ==="
           find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) | sort
+          echo ""
+          echo "=== Testing file access ==="
+          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) -print0 | while IFS= read -r -d '' file; do
+            if [ -f "$file" ]; then
+              echo "✅ File exists: $(basename "$file")"
+              echo "   Path: $file"
+              echo "   Size: $(du -h "$file" | cut -f1)"
+            else
+              echo "❌ File missing: $file"
+            fi
+          done
 
       - name: Verify release information
         env:
@@ -327,29 +366,34 @@ jobs:
             gh release create "$tag_name" --repo ${{ github.repository }} --title "Release $tag_name" --notes "Automated release" || {
               echo "Failed to create release"
               exit 1
-            }
-          fi
+            }          fi
 
           # Загружаем все файлы дистрибутивов в релиз
           echo ""
           echo "=== Starting file uploads ==="
-          upload_success=true
 
-          echo "$files_to_upload" | while IFS= read -r file; do
+          # Создаем временный файл для отслеживания успеха
+          upload_success_file=$(mktemp)
+          echo "true" > "$upload_success_file"          # Используем find с правильной обработкой пробелов в именах файлов
+          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) -print0 | while IFS= read -r -d '' file; do
             if [ -n "$file" ] && [ -f "$file" ]; then
               filename=$(basename "$file")
               echo "🚀 Uploading: $filename"
-              
+              echo "   Full path: $file"
               # Попробуем загрузить файл с повторными попытками
+              upload_failed=false
               for attempt in 1 2 3; do
-                if gh release upload "$tag_name" "$file" --repo ${{ github.repository }} --clobber; then
+                # Используем переменную окружения для пути, чтобы избежать проблем с пробелами
+                export UPLOAD_FILE="$file"
+                if gh release upload "$tag_name" "$UPLOAD_FILE" --repo ${{ github.repository }} --clobber; then
                   echo "✅ Successfully uploaded: $filename"
                   break
                 else
                   echo "❌ Upload attempt $attempt failed for: $filename"
                   if [ $attempt -eq 3 ]; then
                     echo "💥 Failed to upload $filename after 3 attempts"
-                    upload_success=false
+                    upload_failed=true
+                    echo "false" > "$upload_success_file"
                   else
                     echo "🔄 Retrying in 5 seconds..."
                     sleep 5
@@ -358,6 +402,10 @@ jobs:
               done
             fi
           done
+
+          # Проверяем результат загрузки
+          upload_success=$(cat "$upload_success_file")
+          rm "$upload_success_file"
 
           if [ "$upload_success" = true ]; then
             echo ""
