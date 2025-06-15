@@ -310,9 +310,26 @@ jobs:
           elif (echo "❌ Build failed with npm force, trying with legacy-peer-deps" && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npm run make:mac); then
             echo "✅ Build succeeded with npm legacy-peer-deps"
           else
-            echo "💥 All build strategies failed"
-            exit 1
+            echo "💥 All build strategies failed"            exit 1
           fi
+
+      - name: Publish to GitHub Releases (Windows)
+        if: matrix.os == 'windows-latest' && needs.release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run publish:win
+
+      - name: Publish to GitHub Releases (Linux)
+        if: matrix.os == 'ubuntu-latest' && needs.release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run publish:linux
+
+      - name: Publish to GitHub Releases (macOS)
+        if: matrix.os == 'macos-latest' && needs.release.outputs.released == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run publish:mac
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

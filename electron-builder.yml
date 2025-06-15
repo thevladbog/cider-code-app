@@ -19,6 +19,10 @@ asarUnpack:
   - '**/node_modules/prebuild-install/**/*'
 nodeGypRebuild: false
 buildDependenciesFromSource: false
+publish:
+  provider: github
+  owner: thevladbog
+  repo: cider-code-app
 win:
   target:
     - nsis
