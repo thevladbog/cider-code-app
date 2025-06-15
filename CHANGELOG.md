@@ -1,3 +1,12 @@
+## [1.0.0-beta.8](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-06-15)
+
+
+### Bug Fixes
+
+* update changelog ([188fd5f](https://github.com/thevladbog/cider-code-app/commit/188fd5f8cc58a486b6976b2dd77362cdd1117334))
+* update release.yml ([9a25f22](https://github.com/thevladbog/cider-code-app/commit/9a25f22a4b3c8394db0ea006d01e6ad79246ef28))
+* update release.yml ([96aadd7](https://github.com/thevladbog/cider-code-app/commit/96aadd7a3a6973eb5f54290b2a707c16fda7887a))
+
 ## [1.0.0-beta.7](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2025-06-15)
 
 ### Bug Fixes
