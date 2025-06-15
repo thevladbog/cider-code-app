@@ -69,17 +69,85 @@ jobs:
         id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run semantic-release
+        run: |
+          echo "=== Starting semantic-release ==="
+          npm run semantic-release
+          echo "=== Semantic-release completed ==="
+          echo "new_release_published=$NEW_RELEASE_PUBLISHED"
+          echo "new_release_version=$NEW_RELEASE_VERSION" 
+          echo "new_release_git_tag=$NEW_RELEASE_GIT_TAG"
+
+      - name: Format code after release
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          echo "=== Running prettier:fix after semantic-release ==="
+          npm run prettier:fix
+          echo "=== Prettier formatting completed ==="
+
+      - name: Commit formatting changes
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          echo "=== Checking for formatting changes ==="
+
+          # Проверяем есть ли изменения после форматирования
+          if git diff --quiet; then
+            echo "✅ No formatting changes needed"
+          else
+            echo "📝 Formatting changes detected, committing..."
+            
+            # Показываем какие файлы изменились
+            echo "=== Changed files ==="
+            git diff --name-only
+            echo "=== Diff summary ==="
+            git diff --stat
+            
+            # Настраиваем git если еще не настроен
+            git config --local user.name "github-actions[bot]"
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            
+            # Коммитим изменения
+            git add .
+            git commit -m "style: auto-format code after release [skip ci]"
+            
+            # Пушим изменения с retry логикой
+            echo "🚀 Pushing formatting changes..."
+            for attempt in 1 2 3; do
+              if git push origin HEAD:${{ github.ref_name }}; then
+                echo "✅ Formatting changes committed and pushed (attempt $attempt)"
+                break
+              else
+                echo "❌ Push attempt $attempt failed"
+                if [ $attempt -eq 3 ]; then
+                  echo "💥 Failed to push after 3 attempts"
+                  echo "⚠️  Continuing workflow without pushing formatting changes"
+                else
+                  echo "🔄 Retrying in 5 seconds..."
+                  sleep 5
+                  # Подтягиваем возможные изменения
+                  git pull --rebase origin ${{ github.ref_name }} || true
+                fi
+              fi
+            done
+          fi
 
   build:
     needs: release
     runs-on: ${{ matrix.os }}
-    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
+      - name: Debug release outputs
+        run: |
+          echo "=== Release Job Outputs ==="
+          echo "released: ${{ needs.release.outputs.released }}"
+          echo "version: ${{ needs.release.outputs.version }}"
+          echo "tag: ${{ needs.release.outputs.tag }}"
+          echo "=== Build Job Info ==="
+          echo "OS: ${{ matrix.os }}"
+          echo "Event: ${{ github.event_name }}"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -146,8 +214,21 @@ jobs:
   publish:
     needs: [release, build]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
     steps:
+      - name: Check if release was created
+        run: |
+          echo "=== Checking release status ==="
+          echo "released: ${{ needs.release.outputs.released }}"
+          echo "version: ${{ needs.release.outputs.version }}"
+          echo "tag: ${{ needs.release.outputs.tag }}"
+
+          if [ "${{ needs.release.outputs.released }}" != "true" ]; then
+            echo "⚠️  No new release was created, skipping asset upload"
+            exit 0
+          fi
+
+          echo "✅ Release was created, proceeding with asset upload"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
