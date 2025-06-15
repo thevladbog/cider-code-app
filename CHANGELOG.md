@@ -1,3 +1,10 @@
+## [1.0.0-beta.17](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.16...v1.0.0-beta.17) (2025-06-15)
+
+### Bug Fixes
+
+- fixed release flow ([31f2959](https://github.com/thevladbog/cider-code-app/commit/31f295942a6e2e19c2a4ded4ee6d6f357cb6b3cc))
+- **style:** auto-format code after release [skip ci] ([dad69ac](https://github.com/thevladbog/cider-code-app/commit/dad69ac0cb06f0c9e3301f33ec0ed7ae7f4103d9))
+
 ## [1.0.0-beta.16](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.15...v1.0.0-beta.16) (2025-06-15)
 
 ### Bug Fixes
