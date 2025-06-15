@@ -13,8 +13,19 @@ export default defineConfig(({ mode }) => ({
     emptyOutDir: true,
     rollupOptions: {
       input: resolve(__dirname, 'src/index.html'),
+      // Добавляем принудительное использование правильного бинарного файла Rollup
+      external: process.platform === 'darwin' ? [] : undefined,
     },
     sourcemap: true,
+    // Для macOS: устанавливаем явную конфигурацию для избежания проблем с нативными модулями
+    ...(process.platform === 'darwin' && {
+      commonjsOptions: {
+        dynamicRequireTargets: [
+          'node_modules/@rollup/rollup-darwin-arm64/rollup.darwin-arm64.node',
+          'node_modules/@rollup/rollup-darwin-x64/rollup.darwin-x64.node',
+        ],
+      },
+    }),
   },
   resolve: {
     alias: {

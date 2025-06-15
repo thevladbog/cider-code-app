@@ -1,7 +1,7 @@
 {
   "name": "bottle-code-app",
   "productName": "Bottle Code App",
-  "version": "1.0.0-beta.14",
+  "version": "1.0.0-beta.18",
   "description": "Система агрегации в транспортные короба",
   "main": "dist/index.js",
   "type": "commonjs",
@@ -11,9 +11,12 @@
     "package": "npx electron-forge package",
     "make": "npx electron-forge make",
     "clean": "rimraf ./out && rimraf ./dist",
-    "make:win": "npm run build:main && npm run build:renderer && electron-builder --config electron-builder.yml --win",
-    "make:linux": "npm run build:main && npm run build:renderer && electron-builder --config electron-builder.yml --linux",
-    "make:mac": "npm run build:main && npm run build:renderer && electron-builder --config electron-builder.yml --mac",
+    "make:win": "npm run build:main && npm run build:renderer && electron-builder --config electron-builder.yml --win --publish never",
+    "make:linux": "npm run build:main && npm run build:renderer && electron-builder --config electron-builder.yml --linux --publish never",
+    "make:mac": "npm run build:main && npm run build:renderer && electron-builder --config electron-builder.yml --mac --publish never",
+    "publish:win": "electron-builder --config electron-builder.yml --win --publish always",
+    "publish:linux": "electron-builder --config electron-builder.yml --linux --publish always",
+    "publish:mac": "electron-builder --config electron-builder.yml --mac --publish always",
     "publish": "npx electron-forge publish",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -21,6 +24,7 @@
     "prettier:fix": "prettier --write .",
     "format": "npm run prettier:fix && npm run lint:fix",
     "rebuild": "electron-rebuild",
+    "sync-deps": "npm install --package-lock-only",
     "semantic-release": "semantic-release",
     "generate-api-client": "curl -k -o ./src/app/api/openapi.yaml https://api.test.in.bottlecode.app:3035/api/yaml && openapi --input ./src/app/api/openapi.yaml --output ./src/app/api/generated --client axios --useOptions --useUnionTypes",
     "build:renderer": "vite build --config vite.renderer.config.ts",
@@ -91,5 +95,12 @@
     "serialport": "^10.5.0",
     "usb": "^2.15.0",
     "zustand": "^5.0.5"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.0.0",
+    "@rollup/rollup-darwin-x64": "^4.0.0",
+    "@rollup/rollup-linux-arm64-gnu": "^4.0.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.0.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.0.0"
   }
 }
