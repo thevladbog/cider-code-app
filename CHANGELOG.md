@@ -1,3 +1,32 @@
+## [1.0.0-beta.15](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.14...v1.0.0-beta.15) (2025-06-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* Complete migration of build system and packaging
+
+- Migrate from Webpack to Vite for faster development and building
+- Replace Electron Forge with electron-builder for packaging
+- Fix ESM/CommonJS conflicts by removing electron-store dependency
+- Implement custom file-based store to avoid ESM-only packages
+- Add cross-platform build configurations (Windows, Linux, macOS)
+- Update GitHub Actions workflow for electron-builder
+- Fix renderer loading path in production builds
+- Add comprehensive icon sets for all platforms
+- Remove deprecated test and build files
+- Update all build scripts and configurations
+
+Fixes startup crashes and enables proper cross-platform distribution.
+
+### Features
+
+* migrate from webpack+forge to vite+electron-builder ([2b90401](https://github.com/thevladbog/cider-code-app/commit/2b904013c0a33d192d0f28c27b2ad22412e47edd))
+
+
+### Bug Fixes
+
+* **style:** auto-format code after release [skip ci] ([450a68f](https://github.com/thevladbog/cider-code-app/commit/450a68f6c311c0aa88f9f8839b108c215ca9b0f9))
+
 ## [1.0.0-beta.14](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.13...v1.0.0-beta.14) (2025-06-15)
 
 ### Bug Fixes
