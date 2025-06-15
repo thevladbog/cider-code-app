@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a98ece47-f42e-4780-ba7b-434b3ed3a1d7" height="200">
+</p>
+
 # Cider Code App
 
 **Современное Electron приложение для управления штрих-кодами и упаковкой товаров**
