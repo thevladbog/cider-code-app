@@ -94,25 +94,6 @@ out/
 # Semantic Release
 .semantic-release/
 
-# Test files
-test-build.js
-test-artifacts.js
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-test-commitlint.js
-artifact-test-report.json
-temp-commit-msg.txt
-=======
-artifact-test-report.json
->>>>>>> bd6d6b9 (fix: fixed publishing assets)
-=======
-test-commitlint.js
-artifact-test-report.json
-temp-commit-msg.txt
->>>>>>> de0b5ab (fix: fixed flow)
-=======
-test-commitlint.js
-artifact-test-report.json
-temp-commit-msg.txt
->>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
+dist/
+build/
+dist_*/

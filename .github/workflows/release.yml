@@ -198,6 +198,12 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Setup Python (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         run: npm ci
 
@@ -211,18 +217,21 @@ jobs:
         if: matrix.os == 'windows-latest'
         env:
           TARGET_PLATFORM: win32
+          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run make:win
 
       - name: Build application (Linux)
         if: matrix.os == 'ubuntu-latest'
         env:
           TARGET_PLATFORM: linux
+          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run make:linux
 
       - name: Build application (macOS)
         if: matrix.os == 'macos-latest'
         env:
           TARGET_PLATFORM: darwin
+          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run make:mac
 
       - name: Upload artifacts
@@ -230,24 +239,23 @@ jobs:
         with:
           name: built-app-${{ matrix.os }}
           path: |
-            out/make/**/*
-            !out/make/**/*.zip
-            !out/make/**/*.deb
-            !out/make/**/*.rpm
-            !out/make/**/*.dmg
-            !out/make/**/*.exe
+            dist_electron/**/*
+            !dist_electron/**/*.blockmap
+            !dist_electron/**/*.yml
+            !dist_electron/**/*.yaml
 
       - name: Upload distributable artifacts
         uses: actions/upload-artifact@v4
         with:
           name: distributables-${{ matrix.os }}
           path: |
-            out/make/**/**.zip
-            out/make/**/**.deb
-            out/make/**/**.rpm
-            out/make/**/**.dmg
-            out/make/**/**.exe
-            out/make/**/**.nupkg
+            dist_electron/*.exe
+            dist_electron/*.zip
+            dist_electron/*.deb
+            dist_electron/*.rpm
+            dist_electron/*.dmg
+            dist_electron/*.nupkg
+            dist_electron/*.AppImage
           if-no-files-found: warn
   publish:
     needs: [release, build]
@@ -289,10 +297,10 @@ jobs:
           find ./distributables -type f -exec ls -lh {} \; | awk '{print $5 "\t" $9}'
           echo ""
           echo "=== Target distributables ==="
-          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) | sort
+          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" -o -name "*.AppImage" \) | sort
           echo ""
           echo "=== Testing file access ==="
-          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) -print0 | while IFS= read -r -d '' file; do
+          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" -o -name "*.AppImage" \) -print0 | while IFS= read -r -d '' file; do
             if [ -f "$file" ]; then
               echo "✅ File exists: $(basename "$file")"
               echo "   Path: $file"
@@ -335,7 +343,7 @@ jobs:
           fi
 
           # Проверяем наличие файлов для загрузки
-          files_to_upload=$(find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \))
+          files_to_upload=$(find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" -o -name "*.AppImage" \))
           files_count=$(echo "$files_to_upload" | wc -l)
 
           echo "=== Upload Summary ==="
@@ -375,7 +383,7 @@ jobs:
           # Создаем временный файл для отслеживания успеха
           upload_success_file=$(mktemp)
           echo "true" > "$upload_success_file"          # Используем find с правильной обработкой пробелов в именах файлов
-          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) -print0 | while IFS= read -r -d '' file; do
+          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" -o -name "*.AppImage" \) -print0 | while IFS= read -r -d '' file; do
             if [ -n "$file" ] && [ -f "$file" ]; then
               filename=$(basename "$file")
               echo "🚀 Uploading: $filename"

@@ -5,24 +5,17 @@
     {
       "name": "windows-latest",
       "files": 2,
-      "fileNames": [
-        "Bottle [CODE] App-1.0.0 Setup.exe",
-        "bottle_code_app-1.0.0-full.nupkg"
-      ]
+      "fileNames": ["Bottle [CODE] App-1.0.0 Setup.exe", "bottle_code_app-1.0.0-full.nupkg"]
     },
     {
       "name": "ubuntu-latest",
       "files": 1,
-      "fileNames": [
-        "Bottle [CODE] App-linux-x64-1.0.0.zip"
-      ]
+      "fileNames": ["Bottle [CODE] App-linux-x64-1.0.0.zip"]
     },
     {
       "name": "macos-latest",
       "files": 1,
-      "fileNames": [
-        "Bottle [CODE] App-darwin-x64-1.0.0.zip"
-      ]
+      "fileNames": ["Bottle [CODE] App-darwin-x64-1.0.0.zip"]
     }
   ],
   "distributables": [
