@@ -55,7 +55,7 @@
     },
     {
       "type": "style",
-      "release": false
+      "release": "patch"
     },
     {
       "type": "refactor",
