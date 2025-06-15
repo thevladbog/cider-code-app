@@ -12,24 +12,9 @@ import { rendererConfig } from './webpack.renderer.config';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-const linuxMakersCondition =
-  process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux';
-=======
 // Debug log to check environment variables
 console.log('TARGET_PLATFORM:', process.env.TARGET_PLATFORM);
 console.log('process.platform:', process.platform);
->>>>>>> a537ae1 (fix: fixed linux release)
-=======
-const linuxMakersCondition =
-  process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux';
->>>>>>> b68edcd (fix: fixed linux release)
-=======
-const linuxMakersCondition =
-  process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux';
->>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -60,28 +45,6 @@ const config: ForgeConfig = {
       : []),
 
     // Linux makers - only include when building on Linux or when explicitly targeting Linux
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
-    ...(linuxMakersCondition
-      ? [
-          // Use ZIP maker as a universal fallback for Linux (works on all platforms)
-          new MakerZIP({}, ['linux']),
-          // DEB maker - only include when actually running on Linux AND when DEB_ENABLED is explicitly set
-          // This prevents CI environment issues where DEB dependencies aren't available
-          ...(process.platform === 'linux' && process.env.DEB_ENABLED === 'true'
-            ? [
-                new MakerDeb({
-                  options: {
-                    icon: './icons/icon.png',
-                  },
-                }),
-              ]
-            : []),
-<<<<<<< HEAD
-=======
     ...(process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux'
       ? [
           new MakerDeb({
@@ -89,26 +52,6 @@ const config: ForgeConfig = {
               icon: './icons/icon.png',
             },
           }),
->>>>>>> a537ae1 (fix: fixed linux release)
-=======
-    ...(linuxMakersCondition
-      ? [
-          // Use ZIP maker as a universal fallback for Linux (works on all platforms)
-          new MakerZIP({}, ['linux']),
-          // DEB maker - only include when actually running on Linux AND when DEB_ENABLED is explicitly set
-          // This prevents CI environment issues where DEB dependencies aren't available
-          ...(process.platform === 'linux' && process.env.DEB_ENABLED === 'true'
-            ? [
-                new MakerDeb({
-                  options: {
-                    icon: './icons/icon.png',
-                  },
-                }),
-              ]
-            : []),
->>>>>>> b68edcd (fix: fixed linux release)
-=======
->>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
           // RPM maker commented out due to CI environment compatibility issues
           // If you need RPM support and your build environment supports it, uncomment:
           // new MakerRpm({
