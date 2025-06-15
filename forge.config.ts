@@ -14,6 +14,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 const linuxMakersCondition =
   process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux';
 =======
@@ -25,6 +26,10 @@ console.log('process.platform:', process.platform);
 const linuxMakersCondition =
   process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux';
 >>>>>>> b68edcd (fix: fixed linux release)
+=======
+const linuxMakersCondition =
+  process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux';
+>>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -57,6 +62,9 @@ const config: ForgeConfig = {
     // Linux makers - only include when building on Linux or when explicitly targeting Linux
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
     ...(linuxMakersCondition
       ? [
           // Use ZIP maker as a universal fallback for Linux (works on all platforms)
@@ -72,6 +80,7 @@ const config: ForgeConfig = {
                 }),
               ]
             : []),
+<<<<<<< HEAD
 =======
     ...(process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux'
       ? [
@@ -98,6 +107,8 @@ const config: ForgeConfig = {
               ]
             : []),
 >>>>>>> b68edcd (fix: fixed linux release)
+=======
+>>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
           // RPM maker commented out due to CI environment compatibility issues
           // If you need RPM support and your build environment supports it, uncomment:
           // new MakerRpm({

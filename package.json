@@ -5,6 +5,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   "version": "1.0.0-beta.4",
 =======
   "version": "1.0.0-beta.1",
@@ -18,6 +19,9 @@
 =======
   "version": "1.0.0-beta.4",
 >>>>>>> c21f9cb (chore(release): 1.0.0-beta.4 [skip ci])
+=======
+  "version": "1.0.0-beta.4",
+>>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
   "description": "Система агрегации в транспортные короба",
   "main": ".webpack/main",
   "scripts": {
@@ -27,12 +31,16 @@
     "make": "npx electron-forge make",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> b68edcd (fix: fixed linux release)
+=======
+>>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
     "make:win": "cross-env TARGET_PLATFORM=win32 npx electron-forge make --platform=win32",
     "make:linux": "cross-env TARGET_PLATFORM=linux npx electron-forge make --platform=linux",
     "make:linux:deb": "cross-env TARGET_PLATFORM=linux DEB_ENABLED=true npx electron-forge make --platform=linux",
     "make:mac": "cross-env TARGET_PLATFORM=darwin npx electron-forge make --platform=darwin",
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
     "make:win": "set TARGET_PLATFORM=win32 && npx electron-forge make --platform=win32",
@@ -41,6 +49,8 @@
 >>>>>>> a537ae1 (fix: fixed linux release)
 =======
 >>>>>>> b68edcd (fix: fixed linux release)
+=======
+>>>>>>> 3b983a2b2cb7572e1724861821f055d2e974b90d
     "publish": "npx electron-forge publish",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
