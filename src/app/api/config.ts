@@ -3,10 +3,11 @@ import { OpenAPI } from './generated';
 // Базовый URL API (можно получить из переменной окружения)
 let baseURL = 'https://api.bottlecode.app'; // Production URL by default
 
-if (process.env.NODE_ENV === 'development') {
+// В Vite используем import.meta.env вместо process.env
+if (import.meta.env.DEV) {
   baseURL = 'https://api.test.in.bottlecode.app:3035';
-} else if (process.env.APP_ENV === 'beta') {
-  // Assuming you'll set APP_ENV for beta
+} else if (import.meta.env.VITE_APP_ENV === 'beta') {
+  // Assuming you'll set VITE_APP_ENV for beta
   baseURL = 'https://beta.api.bottlecode.app';
 }
 

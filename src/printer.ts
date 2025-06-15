@@ -1,7 +1,6 @@
 import { BrowserWindow } from 'electron';
 import * as net_socket from 'net';
 
-import { addDays, format } from 'date-fns';
 import { storeWrapper } from './store-wrapper';
 
 // Import USB module with fallback for environments where it's not available
@@ -908,8 +907,8 @@ const DEFAULT_SSCC_TEMPLATE = `^XA^PW800^FO4,44^GB791,0,4^FS ^FO12,8^A@N,16,15,4
 function replaceTemplatePlaceholders(template: string, data: SSCCLabelData): string {
   return template
     .replace(/\{\{fullName\}\}/g, data.fullName)
-    .replace(/\{\{plannedDate\}\}/g, format(data.plannedDate, 'dd.MM.yy г.'))
-    .replace(/\{\{expiration\}\}/g, format(data.expiration, 'dd.MM.yy г.'))
+    .replace(/\{\{plannedDate\}\}/g, formatDateForLabel(new Date(data.plannedDate)))
+    .replace(/\{\{expiration\}\}/g, formatDateForLabel(new Date(data.expiration)))
     .replace(/\{\{barcode\}\}/g, formatGtinForBarcode(data.barcode))
     .replace(/\{\{alcoholCode\}\}/g, data.alcoholCode)
     .replace(/\{\{currentCountInBox\}\}/g, data.currentCountInBox.toString())
@@ -946,23 +945,24 @@ export function createSSCCLabelData(
     typeof shift.plannedDate === 'string' ? new Date(shift.plannedDate) : shift.plannedDate;
 
   // Вычисляем дату срока годности
-  const expirationDate = addDays(plannedDate, product.expirationInDays);
+  const expirationDate = new Date(plannedDate);
+  expirationDate.setDate(expirationDate.getDate() + product.expirationInDays);
 
   console.log('Creating SSCC label data:', {
     shift,
     product,
     plannedDate,
     expirationDate,
-    formattedPlanned: format(plannedDate, 'dd.MM.yy г.'),
-    formattedExpiration: format(expirationDate, 'dd.MM.yy г.'),
+    formattedPlanned: formatDateForLabel(plannedDate),
+    formattedExpiration: formatDateForLabel(expirationDate),
     originalGtin: product.gtin,
     formattedBarcode: formatGtinForBarcode(product.gtin),
   });
   return {
     ssccCode,
     fullName: product.fullName,
-    plannedDate: format(plannedDate, 'dd.MM.yy г.'),
-    expiration: format(expirationDate, 'dd.MM.yy г.'),
+    plannedDate: formatDateForLabel(plannedDate),
+    expiration: formatDateForLabel(expirationDate),
     barcode: formatGtinForBarcode(product.gtin),
     alcoholCode: product.alcoholCode || '',
     currentCountInBox,

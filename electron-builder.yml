@@ -1,0 +1,39 @@
+appId: com.v-b.bottlecode.app
+productName: Bottle Code App
+directories:
+  output: dist_electron
+  buildResources: build-resources
+files:
+  - dist/**/*
+  - node_modules/**/*
+  - package.json
+extraMetadata:
+  main: dist/index.js
+asarUnpack:
+  - '**/node_modules/serialport/**/*'
+  - '**/node_modules/@serialport/**/*'
+  - '**/node_modules/usb/**/*'
+  - '**/node_modules/bindings/**/*'
+  - '**/node_modules/node-addon-api/**/*'
+  - '**/node_modules/node-gyp-build/**/*'
+  - '**/node_modules/prebuild-install/**/*'
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+win:
+  target:
+    - nsis
+  icon: build-resources/icons/win/icon.ico
+
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: build-resources/icons/png/
+  category: Utility
+
+mac:
+  target:
+    - dmg
+    - zip
+  icon: build-resources/icons/mac/icon.icns
+  category: public.app-category.productivity

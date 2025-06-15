@@ -1,5 +1,6 @@
 import { app } from 'electron';
-import Store from 'electron-store';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Определяем схему для хранения данных
 interface StoreSchema {
@@ -22,31 +23,77 @@ interface IStoreWrapper {
   set: <K extends keyof StoreSchema>(key: K, value: StoreSchema[K]) => void;
   delete: <K extends keyof StoreSchema>(key: K) => void;
   clear: () => void;
+  isInitialized: () => boolean;
 }
 
-Store.initRenderer();
-// Создаем экземпляр Store с типизацией
-const store = new Store<StoreSchema>({
-  name: 'app-config',
-  cwd: app.getPath('userData'),
-});
+// Простое файловое хранилище как замена electron-store
+class SimpleFileStore {
+  private storePath: string;
+  private data: StoreSchema = {};
+
+  constructor() {
+    const userDataPath = app.getPath('userData');
+    this.storePath = path.join(userDataPath, 'app-config.json');
+    this.loadData();
+  }
+
+  private loadData(): void {
+    try {
+      if (fs.existsSync(this.storePath)) {
+        const rawData = fs.readFileSync(this.storePath, 'utf8');
+        this.data = JSON.parse(rawData);
+      }
+    } catch (error) {
+      console.error('Failed to load store data:', error);
+      this.data = {};
+    }
+  }
+
+  private saveData(): void {
+    try {
+      fs.writeFileSync(this.storePath, JSON.stringify(this.data, null, 2));
+    } catch (error) {
+      console.error('Failed to save store data:', error);
+    }
+  }
+
+  get<K extends keyof StoreSchema>(key: K): StoreSchema[K] {
+    return this.data[key];
+  }
+
+  set<K extends keyof StoreSchema>(key: K, value: StoreSchema[K]): void {
+    this.data[key] = value;
+    this.saveData();
+  }
+
+  delete<K extends keyof StoreSchema>(key: K): void {
+    delete this.data[key];
+    this.saveData();
+  }
+
+  clear(): void {
+    this.data = {};
+    this.saveData();
+  }
+}
+
+const store = new SimpleFileStore();
 
 // Обертка для типизированного доступа к Store
 export const storeWrapper: IStoreWrapper = {
   get: <K extends keyof StoreSchema>(key: K): StoreSchema[K] => {
-    // @ts-expect-error Store typing needs to be improved
     return store.get(key);
   },
   set: <K extends keyof StoreSchema>(key: K, value: StoreSchema[K]): void => {
-    // @ts-expect-error Store typing needs to be improved
     store.set(key, value);
   },
   delete: <K extends keyof StoreSchema>(key: K): void => {
-    // @ts-expect-error Store typing needs to be improved
     store.delete(key);
   },
   clear: (): void => {
-    // @ts-expect-error Store typing needs to be improved
     store.clear();
+  },
+  isInitialized: (): boolean => {
+    return true; // Всегда инициализирован
   },
 };

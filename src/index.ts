@@ -39,9 +39,6 @@ import {
 } from './serialPortConfig';
 import { storeWrapper } from './store-wrapper';
 
-declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
-declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
-
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
@@ -53,15 +50,17 @@ function createWindow() {
     //kiosk: true,       // Режим киоска (скрывает панель пуск)
     //autoHideMenuBar: true, // Скрываем меню
     webPreferences: {
-      preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: false,
     },
-  });
-
-  // Используем URL, предоставленный Electron Forge Webpack Plugin
-  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+  }); // Используем NODE_ENV для выбора URL
+  const isDev = process.env.NODE_ENV === 'development';
+  const mainWindowUrl = isDev
+    ? 'http://localhost:3000'
+    : `file://${path.join(__dirname, './renderer/index.html')}`;
+  mainWindow.loadURL(mainWindowUrl);
 
   // В режиме разработки можно оставить DevTools
   if (process.env.NODE_ENV === 'development') {
@@ -72,15 +71,17 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-
   // Добавляем хоткей для выхода из полноэкранного режима (только для разработки)
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.on('before-input-event', (event, input) => {
-      if (input.key === 'F11') {
-        mainWindow?.setFullScreen(!mainWindow.isFullScreen());
-        event.preventDefault();
+    mainWindow.webContents.on(
+      'before-input-event',
+      (event: Electron.Event, input: Electron.Input) => {
+        if (input.key === 'F11') {
+          mainWindow?.setFullScreen(!mainWindow.isFullScreen());
+          event.preventDefault();
+        }
       }
-    });
+    );
   }
 }
 

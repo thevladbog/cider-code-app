@@ -81,11 +81,13 @@ module.exports = [
       'node_modules/',
       'dist/',
       '.webpack/',
+      '.vite/',
       'out/',
       '*.min.js',
       '*.bundle.js',
       'coverage/',
       '.nyc_output/',
+      'dist_electron/',
     ],
   },
 ];

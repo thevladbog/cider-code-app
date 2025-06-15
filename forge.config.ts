@@ -3,12 +3,9 @@ import { MakerDMG } from '@electron-forge/maker-dmg';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
-import { WebpackPlugin } from '@electron-forge/plugin-webpack';
+import { VitePlugin } from '@electron-forge/plugin-vite';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
-
-import { mainConfig } from './webpack.main.config';
-import { rendererConfig } from './webpack.renderer.config';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -19,11 +16,9 @@ console.log('process.platform:', process.platform);
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    icon: './icons/icon', // Путь к иконке без расширения (Electron автоматически выберет нужный формат)
+    icon: './build-resources/icons/', // Путь к иконке без расширения (Electron автоматически выберет нужный формат)
     // Don't prune native modules since we have serialport and usb dependencies
     prune: false,
-    // Remove manual ignore configuration - let Webpack plugin handle this automatically
-    // This prevents the "packaged app may be larger than expected" warning
     executableName: 'bottle-code-app', // Явно указываем имя исполняемого файла
     // Настраиваем имя приложения для разных платформ
     name: 'bottle-code-app',
@@ -34,7 +29,7 @@ const config: ForgeConfig = {
     new MakerSquirrel({
       name: 'bottle-code-app',
       // iconUrl: 'https://example.com/icon.ico', // URL для установщика Windows (добавить когда будет .ico файл)
-      // setupIcon: './icons/icon.ico', // Локальная иконка для установщика (добавить когда будет .ico файл)
+      setupIcon: './build-resources/icons/win/icon.ico', // Локальная иконка для установщика (добавить когда будет .ico файл)
     }),
 
     // macOS makers
@@ -44,7 +39,7 @@ const config: ForgeConfig = {
       ? [
           new MakerDMG({
             name: 'bottle-code-app',
-            icon: './icons/icon.png',
+            icon: './build-resources/icons/mac/icon.icns',
           }),
         ]
       : []),
@@ -71,24 +66,14 @@ const config: ForgeConfig = {
       : []),
   ],
   plugins: [
-    new WebpackPlugin({
-      mainConfig,
-      renderer: {
-        config: rendererConfig,
-        entryPoints: [
-          {
-            html: './src/index.html',
-            js: './src/renderer.ts',
-            name: 'main_window',
-            preload: {
-              js: './src/preload.ts',
-            },
-          },
-        ],
-      },
-      // Улучшенная конфигурация для hot reload
-      devContentSecurityPolicy:
-        "default-src 'self' 'unsafe-inline' data:; script-src 'self' 'unsafe-eval' 'unsafe-inline' data: blob:; connect-src 'self' ws: wss:;",
+    new VitePlugin({
+      build: [],
+      renderer: [
+        {
+          name: 'main_window',
+          config: 'vite.renderer.config.ts',
+        },
+      ],
     }),
     // Only include FusesPlugin in production to avoid conflicts during development
     ...(isDevelopment

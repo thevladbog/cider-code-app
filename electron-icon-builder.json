@@ -1,0 +1,22 @@
+{
+  "build": {
+    "appId": "com.cider.code.app",
+    "productName": "Bottle-CODE-App",
+    "directories": {
+      "buildResources": "build-resources"
+    },
+    "win": {
+      "icon": "build-resources/icon.ico"
+    },
+    "mac": {
+      "icon": "build-resources/icon.icns"
+    },
+    "linux": {
+      "icon": "build-resources/icons"
+    }
+  },
+  "icons": {
+    "input": "icons/icon.png",
+    "output": "build-resources"
+  }
+}
