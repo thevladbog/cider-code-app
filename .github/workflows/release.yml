@@ -75,26 +75,48 @@ jobs:
           echo "Repository: ${{ github.repository }}"
           echo "Ref: ${{ github.ref }}"
 
-          # Запускаем semantic-release с отладкой
-          DEBUG=semantic-release:* npm run semantic-release || true
+          # Запускаем semantic-release и сохраняем вывод
+          set +e
+          output=$(npm run semantic-release 2>&1)
+          exit_code=$?
+          set -e
 
-          echo "=== Semantic-release completed ==="
+          echo "$output"
 
-          # Получаем значения переменных окружения после semantic-release
-          echo "=== Checking environment variables ==="
-          echo "NEW_RELEASE_PUBLISHED=${NEW_RELEASE_PUBLISHED:-false}"
-          echo "NEW_RELEASE_VERSION=${NEW_RELEASE_VERSION:-}"
-          echo "NEW_RELEASE_GIT_TAG=${NEW_RELEASE_GIT_TAG:-}"
+          echo "=== Semantic-release completed with exit code: $exit_code ==="
+
+          # Парсим вывод semantic-release для получения информации о релизе
+          new_release_published="false"
+          new_release_version=""
+          new_release_tag=""
+
+          if echo "$output" | grep -q "Published release"; then
+            new_release_published="true"
+            # Извлекаем версию из строки типа "Published release 1.0.0-beta.10 on beta channel"
+            new_release_version=$(echo "$output" | grep "Published release" | sed -n 's/.*Published release \([^ ]*\) on.*/\1/p')
+            new_release_tag="v${new_release_version}"
+            echo "✅ New release detected: $new_release_version"
+          elif echo "$output" | grep -q "Created tag"; then
+            new_release_published="true"
+            # Извлекаем тег из строки типа "Created tag v1.0.0-beta.10"
+            new_release_tag=$(echo "$output" | grep "Created tag" | sed -n 's/.*Created tag \([^ ]*\).*/\1/p')
+            new_release_version=$(echo "$new_release_tag" | sed 's/^v//')
+            echo "✅ New release tag detected: $new_release_tag"
+          else
+            echo "ℹ️  No new release was published"
+          fi
+
+          echo "=== Release Information ==="
+          echo "Published: $new_release_published"
+          echo "Version: $new_release_version"
+          echo "Tag: $new_release_tag"
 
           # Устанавливаем outputs для GitHub Actions
-          echo "new_release_published=${NEW_RELEASE_PUBLISHED:-false}" >> $GITHUB_OUTPUT
-          echo "new_release_version=${NEW_RELEASE_VERSION:-}" >> $GITHUB_OUTPUT
-          echo "new_release_git_tag=${NEW_RELEASE_GIT_TAG:-}" >> $GITHUB_OUTPUT
+          echo "new_release_published=$new_release_published" >> $GITHUB_OUTPUT
+          echo "new_release_version=$new_release_version" >> $GITHUB_OUTPUT
+          echo "new_release_git_tag=$new_release_tag" >> $GITHUB_OUTPUT
 
-          echo "=== Outputs set ==="
-          echo "Released: ${NEW_RELEASE_PUBLISHED:-false}"
-          echo "Version: ${NEW_RELEASE_VERSION:-}"
-          echo "Tag: ${NEW_RELEASE_GIT_TAG:-}"
+          echo "=== Outputs configured ==="
 
       - name: Format code after release
         run: |
