@@ -73,19 +73,30 @@ jobs:
           echo "=== Starting semantic-release ==="
           npm run semantic-release
           echo "=== Semantic-release completed ==="
-          echo "new_release_published=$NEW_RELEASE_PUBLISHED"
-          echo "new_release_version=$NEW_RELEASE_VERSION" 
-          echo "new_release_git_tag=$NEW_RELEASE_GIT_TAG"
+
+          # Получаем значения переменных окружения после semantic-release
+          echo "=== Checking environment variables ==="
+          echo "NEW_RELEASE_PUBLISHED=${NEW_RELEASE_PUBLISHED:-false}"
+          echo "NEW_RELEASE_VERSION=${NEW_RELEASE_VERSION:-}"
+          echo "NEW_RELEASE_GIT_TAG=${NEW_RELEASE_GIT_TAG:-}"
+
+          # Устанавливаем outputs для GitHub Actions
+          echo "new_release_published=${NEW_RELEASE_PUBLISHED:-false}" >> $GITHUB_OUTPUT
+          echo "new_release_version=${NEW_RELEASE_VERSION:-}" >> $GITHUB_OUTPUT
+          echo "new_release_git_tag=${NEW_RELEASE_GIT_TAG:-}" >> $GITHUB_OUTPUT
+
+          echo "=== Outputs set ==="
+          echo "Released: ${NEW_RELEASE_PUBLISHED:-false}"
+          echo "Version: ${NEW_RELEASE_VERSION:-}"
+          echo "Tag: ${NEW_RELEASE_GIT_TAG:-}"
 
       - name: Format code after release
-        if: steps.semantic.outputs.new_release_published == 'true'
         run: |
           echo "=== Running prettier:fix after semantic-release ==="
           npm run prettier:fix
           echo "=== Prettier formatting completed ==="
 
       - name: Commit formatting changes
-        if: steps.semantic.outputs.new_release_published == 'true'
         run: |
           echo "=== Checking for formatting changes ==="
 
@@ -210,10 +221,10 @@ jobs:
             out/make/**/**.exe
             out/make/**/**.nupkg
           if-no-files-found: warn
-
   publish:
     needs: [release, build]
     runs-on: ubuntu-latest
+    if: needs.release.outputs.released == 'true'
     steps:
       - name: Check if release was created
         run: |
