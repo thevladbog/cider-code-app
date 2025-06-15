@@ -74,7 +74,6 @@ jobs:
   build:
     needs: release
     runs-on: ${{ matrix.os }}
-    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
@@ -146,7 +145,6 @@ jobs:
   publish:
     needs: [release, build]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
