@@ -366,8 +366,9 @@ jobs:
             gh release create "$tag_name" --repo ${{ github.repository }} --title "Release $tag_name" --notes "Automated release" || {
               echo "Failed to create release"
               exit 1
-            }
-          fi          # Загружаем все файлы дистрибутивов в релиз
+            }          fi
+
+          # Загружаем все файлы дистрибутивов в релиз
           echo ""
           echo "=== Starting file uploads ==="
 
@@ -381,11 +382,11 @@ jobs:
               filename=$(basename "$file")
               echo "🚀 Uploading: $filename"
               echo "   Full path: $file"
-              
-              # Попробуем загрузить файл с повторными попытками
-              upload_failed=false
-              for attempt in 1 2 3; do
-                if gh release upload "$tag_name" "$file" --repo ${{ github.repository }} --clobber; then
+                # Попробуем загрузить файл с повторными попытками
+              upload_failed=false              for attempt in 1 2 3; do
+                # Используем переменную окружения для пути, чтобы избежать проблем с пробелами
+                export UPLOAD_FILE="$file"
+                if gh release upload "$tag_name" "$UPLOAD_FILE" --repo ${{ github.repository }} --clobber; then
                   echo "✅ Successfully uploaded: $filename"
                   break
                 else
