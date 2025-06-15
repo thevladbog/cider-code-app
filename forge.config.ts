@@ -12,8 +12,9 @@ import { rendererConfig } from './webpack.renderer.config';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-const linuxMakersCondition =
-  process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux';
+// Debug log to check environment variables
+console.log('TARGET_PLATFORM:', process.env.TARGET_PLATFORM);
+console.log('process.platform:', process.platform);
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -44,21 +45,13 @@ const config: ForgeConfig = {
       : []),
 
     // Linux makers - only include when building on Linux or when explicitly targeting Linux
-    ...(linuxMakersCondition
+    ...(process.platform === 'linux' || process.env.TARGET_PLATFORM === 'linux'
       ? [
-          // Use ZIP maker as a universal fallback for Linux (works on all platforms)
-          new MakerZIP({}, ['linux']),
-          // DEB maker - only include when actually running on Linux AND when DEB_ENABLED is explicitly set
-          // This prevents CI environment issues where DEB dependencies aren't available
-          ...(process.platform === 'linux' && process.env.DEB_ENABLED === 'true'
-            ? [
-                new MakerDeb({
-                  options: {
-                    icon: './icons/icon.png',
-                  },
-                }),
-              ]
-            : []),
+          new MakerDeb({
+            options: {
+              icon: './icons/icon.png',
+            },
+          }),
           // RPM maker commented out due to CI environment compatibility issues
           // If you need RPM support and your build environment supports it, uncomment:
           // new MakerRpm({

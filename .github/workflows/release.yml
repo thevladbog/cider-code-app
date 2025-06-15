@@ -39,13 +39,17 @@ jobs:
   release:
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
+      tag: ${{ steps.semantic.outputs.new_release_git_tag }}
     if: github.event_name == 'push'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -62,14 +66,15 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Release
+        id: semantic
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run semantic-release
 
   build:
     needs: release
     runs-on: ${{ matrix.os }}
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
@@ -130,8 +135,145 @@ jobs:
         with:
           name: distributables-${{ matrix.os }}
           path: |
-            out/make/**/*.zip
-            out/make/**/*.deb
-            out/make/**/*.rpm
-            out/make/**/*.dmg
-            out/make/**/*.exe
+            out/make/**/**.zip
+            out/make/**/**.deb
+            out/make/**/**.rpm
+            out/make/**/**.dmg
+            out/make/**/**.exe
+            out/make/**/**.nupkg
+          if-no-files-found: warn
+
+  publish:
+    needs: [release, build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: distributables-*
+          merge-multiple: true
+          path: ./distributables
+
+      - name: Display downloaded files (detailed)
+        run: |
+          echo "=== Downloaded artifacts structure ==="
+          find ./distributables -type f | sort
+          echo ""
+          echo "=== File sizes ==="
+          find ./distributables -type f -exec ls -lh {} \; | awk '{print $5 "\t" $9}'
+          echo ""
+          echo "=== Target distributables ==="
+          find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) | sort
+
+      - name: Verify release information
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Release Information ==="
+          echo "Tag from semantic-release: ${{ needs.release.outputs.tag }}"
+          echo "Version: ${{ needs.release.outputs.version }}"
+          echo "Released: ${{ needs.release.outputs.released }}"
+          echo ""
+          echo "=== Latest GitHub Release ==="
+          gh release view --repo ${{ github.repository }} --json tagName,name,publishedAt,assets || echo "No release found"
+          echo ""
+          echo "=== All Releases (latest 3) ==="
+          gh release list --repo ${{ github.repository }} --limit 3
+
+      - name: Upload release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag_name="${{ needs.release.outputs.tag }}"
+          echo "=== Starting asset upload ==="
+          echo "Target release tag: $tag_name"
+
+          if [ -z "$tag_name" ]; then
+            echo "❌ No tag name found, cannot upload assets"
+            echo "Available outputs from release job:"
+            echo "  tag: ${{ needs.release.outputs.tag }}"
+            echo "  version: ${{ needs.release.outputs.version }}"
+            echo "  released: ${{ needs.release.outputs.released }}"
+            exit 1
+          fi
+
+          # Проверяем наличие файлов для загрузки
+          files_to_upload=$(find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \))
+          files_count=$(echo "$files_to_upload" | wc -l)
+
+          echo "=== Upload Summary ==="
+          echo "Files to upload: $files_count"
+
+          if [ "$files_count" -eq 0 ] || [ -z "$files_to_upload" ]; then
+            echo "❌ No distributable files found to upload"
+            echo "Directory contents:"
+            ls -la ./distributables/ || echo "Directory does not exist"
+            exit 1
+          fi
+
+          echo "=== Files to upload ==="
+          echo "$files_to_upload" | while IFS= read -r file; do
+            if [ -n "$file" ]; then
+              echo "📦 $(basename "$file") ($(du -h "$file" | cut -f1))"
+            fi
+          done
+
+          # Проверяем существование релиза
+          echo ""
+          echo "=== Verifying release exists ==="
+          if gh release view "$tag_name" --repo ${{ github.repository }} >/dev/null 2>&1; then
+            echo "✅ Release $tag_name exists"
+          else
+            echo "❌ Release $tag_name not found"
+            echo "Creating release..."
+            gh release create "$tag_name" --repo ${{ github.repository }} --title "Release $tag_name" --notes "Automated release" || {
+              echo "Failed to create release"
+              exit 1
+            }
+          fi
+
+          # Загружаем все файлы дистрибутивов в релиз
+          echo ""
+          echo "=== Starting file uploads ==="
+          upload_success=true
+
+          echo "$files_to_upload" | while IFS= read -r file; do
+            if [ -n "$file" ] && [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "🚀 Uploading: $filename"
+              
+              # Попробуем загрузить файл с повторными попытками
+              for attempt in 1 2 3; do
+                if gh release upload "$tag_name" "$file" --repo ${{ github.repository }} --clobber; then
+                  echo "✅ Successfully uploaded: $filename"
+                  break
+                else
+                  echo "❌ Upload attempt $attempt failed for: $filename"
+                  if [ $attempt -eq 3 ]; then
+                    echo "💥 Failed to upload $filename after 3 attempts"
+                    upload_success=false
+                  else
+                    echo "🔄 Retrying in 5 seconds..."
+                    sleep 5
+                  fi
+                fi
+              done
+            fi
+          done
+
+          if [ "$upload_success" = true ]; then
+            echo ""
+            echo "🎉 All assets uploaded successfully to release $tag_name"
+            echo "=== Final release info ==="
+            gh release view "$tag_name" --repo ${{ github.repository }} --json tagName,name,assets
+          else
+            echo ""
+            echo "💥 Some uploads failed"
+            exit 1
+          fi

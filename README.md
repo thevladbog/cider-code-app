@@ -1,10 +1,14 @@
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a98ece47-f42e-4780-ba7b-434b3ed3a1d7" height="200">
+</p>
+
 # Cider Code App
 
 **Современное Electron приложение для управления штрих-кодами и упаковкой товаров**
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
-![Release](https://github.com/yourusername/cider-code-app/actions/workflows/release.yml/badge.svg)
+[![Release](https://github.com/thevladbog/cider-code-app/actions/workflows/release.yml/badge.svg?branch=release-stable)](https://github.com/thevladbog/cider-code-app/actions/workflows/release.yml)
 ![Electron](https://img.shields.io/badge/Electron-36.2.1-47848f.svg)
 ![React](https://img.shields.io/badge/React-19.1.0-61dafb.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-3178c6.svg)
@@ -81,7 +85,7 @@ Cider Code App — это десктопное приложение для ав�
 ### Системные требования
 
 - **OS**: Windows 10/11, macOS, Linux
-- **Node.js**: 18+
+- **Node.js**: 22+
 - **Yarn**: 1.22+ (рекомендуется)
 
 ### Установка зависимостей
