@@ -21,6 +21,7 @@
     "prettier:fix": "prettier --write .",
     "format": "npm run prettier:fix && npm run lint:fix",
     "rebuild": "electron-rebuild",
+    "sync-deps": "npm install --package-lock-only",
     "semantic-release": "semantic-release",
     "generate-api-client": "curl -k -o ./src/app/api/openapi.yaml https://api.test.in.bottlecode.app:3035/api/yaml && openapi --input ./src/app/api/openapi.yaml --output ./src/app/api/generated --client axios --useOptions --useUnionTypes",
     "build:renderer": "vite build --config vite.renderer.config.ts",
