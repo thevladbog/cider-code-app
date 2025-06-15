@@ -97,4 +97,6 @@ out/
 # Test files
 test-build.js
 test-artifacts.js
+test-commitlint.js
 artifact-test-report.json
+temp-commit-msg.txt
