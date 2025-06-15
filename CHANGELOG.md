@@ -1,6 +1,5 @@
 ## [1.0.0-beta.6](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2025-06-15)
 
-
 ### Bug Fixes
 
 - Update release.yml ([31880b9](https://github.com/thevladbog/cider-code-app/commit/31880b9ca14405850cdad57691d9c785872265aa))
