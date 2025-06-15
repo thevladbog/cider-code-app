@@ -374,16 +374,15 @@ jobs:
 
           # Создаем временный файл для отслеживания успеха
           upload_success_file=$(mktemp)
-          echo "true" > "$upload_success_file"
-
-          # Используем find с правильной обработкой пробелов в именах файлов
+          echo "true" > "$upload_success_file"          # Используем find с правильной обработкой пробелов в именах файлов
           find ./distributables -type f \( -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.nupkg" \) -print0 | while IFS= read -r -d '' file; do
             if [ -n "$file" ] && [ -f "$file" ]; then
               filename=$(basename "$file")
               echo "🚀 Uploading: $filename"
               echo "   Full path: $file"
-                # Попробуем загрузить файл с повторными попытками
-              upload_failed=false              for attempt in 1 2 3; do
+              # Попробуем загрузить файл с повторными попытками
+              upload_failed=false
+              for attempt in 1 2 3; do
                 # Используем переменную окружения для пути, чтобы избежать проблем с пробелами
                 export UPLOAD_FILE="$file"
                 if gh release upload "$tag_name" "$UPLOAD_FILE" --repo ${{ github.repository }} --clobber; then
