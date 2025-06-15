@@ -24,6 +24,7 @@ const config: ForgeConfig = {
     prune: false,
     // Remove manual ignore configuration - let Webpack plugin handle this automatically
     // This prevents the "packaged app may be larger than expected" warning
+    executableName: 'bottle-code-app', // Явно указываем имя исполняемого файла
   },
   rebuildConfig: {},
   makers: [
@@ -50,6 +51,7 @@ const config: ForgeConfig = {
           new MakerDeb({
             options: {
               icon: './icons/icon.png',
+              bin: 'bottle-code-app', // Явно указываем имя исполняемого файла
             },
           }),
           // RPM maker commented out due to CI environment compatibility issues

@@ -69,33 +69,17 @@ jobs:
         id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "=== Starting semantic-release ==="
-          npm run semantic-release
-          echo "=== Semantic-release completed ==="
-          echo "new_release_published=$NEW_RELEASE_PUBLISHED"
-          echo "new_release_version=$NEW_RELEASE_VERSION" 
-          echo "new_release_git_tag=$NEW_RELEASE_GIT_TAG"
+        run: npm run semantic-release
 
   build:
     needs: release
     runs-on: ${{ matrix.os }}
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
-      - name: Debug release outputs
-        run: |
-          echo "=== Release Job Outputs ==="
-          echo "released: ${{ needs.release.outputs.released }}"
-          echo "version: ${{ needs.release.outputs.version }}"
-          echo "tag: ${{ needs.release.outputs.tag }}"
-          echo "=== Build Job Info ==="
-          echo "OS: ${{ matrix.os }}"
-          echo "Event: ${{ github.event_name }}"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -162,22 +146,8 @@ jobs:
   publish:
     needs: [release, build]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.release.outputs.released == 'true'
     steps:
-      - name: Check if release was created
-        run: |
-          echo "=== Checking release status ==="
-          echo "released: ${{ needs.release.outputs.released }}"
-          echo "version: ${{ needs.release.outputs.version }}"
-          echo "tag: ${{ needs.release.outputs.tag }}"
-
-          if [ "${{ needs.release.outputs.released }}" != "true" ]; then
-            echo "⚠️  No new release was created, skipping asset upload"
-            exit 0
-          fi
-
-          echo "✅ Release was created, proceeding with asset upload"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
