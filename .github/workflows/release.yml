@@ -203,7 +203,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: ${{ matrix.os == 'macos-latest' && 'yarn' || 'npm' }}
+          cache: 'npm'
 
       - name: Setup Python (Windows)
         if: matrix.os == 'windows-latest'
@@ -211,16 +211,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Clean dependencies (macOS)
+      - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          echo "=== Installing Yarn ==="
-          npm install -g yarn
-          echo "=== Cleaning dependencies for macOS ==="
-          rm -rf node_modules package-lock.json yarn.lock
-          yarn cache clean
-          echo "=== Installing dependencies with Yarn (including optional dependencies) ==="
-          yarn install --check-files || (echo "First install failed, retrying..." && yarn install --check-files)
+          echo "=== Syncing package-lock.json with new optional dependencies ==="
+          npm run sync-deps
+          echo "=== Installing dependencies for macOS ==="
+          npm ci
           echo "=== Verifying Rollup installation ==="
           ls -la node_modules/@rollup/ || echo "Rollup modules not found"
 
@@ -239,14 +236,14 @@ jobs:
               echo "✅ ARM64 Rollup binary found"
             else
               echo "❌ ARM64 Rollup binary missing, installing..."
-              yarn add @rollup/rollup-darwin-arm64 --optional || npm install @rollup/rollup-darwin-arm64 --save-optional
+              npm install @rollup/rollup-darwin-arm64 --save-optional
             fi
           else
             if [ -d "node_modules/@rollup/rollup-darwin-x64" ]; then
               echo "✅ x64 Rollup binary found"
             else
               echo "❌ x64 Rollup binary missing, installing..."
-              yarn add @rollup/rollup-darwin-x64 --optional || npm install @rollup/rollup-darwin-x64 --save-optional
+              npm install @rollup/rollup-darwin-x64 --save-optional
             fi
           fi
 
@@ -255,7 +252,11 @@ jobs:
 
       - name: Install dependencies
         if: matrix.os != 'macos-latest'
-        run: npm ci
+        run: |
+          echo "=== Syncing package-lock.json with new optional dependencies ==="
+          npm run sync-deps
+          echo "=== Installing dependencies ==="
+          npm ci
 
       - name: Install system dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -284,13 +285,13 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           # Устанавливаем переменные для корректной работы с нативными модулями
           npm_config_target_platform: darwin
-          npm_config_cache: ~/.yarn
+          npm_config_cache: ~/.npm
           # Принудительно указываем архитектуру для npm
           npm_config_target_arch: ${{ runner.arch == 'X64' && 'x64' || 'arm64' }}
         run: |
           echo "=== Pre-build verification for macOS ==="
           echo "Node.js version: $(node --version)"
-          echo "Yarn version: $(yarn --version)"
+          echo "npm version: $(npm --version)"
           echo "Platform: $(uname -a)"
           echo "Architecture: $(uname -m)"
           echo "Runner architecture: ${{ runner.arch }}"
@@ -299,11 +300,11 @@ jobs:
           find node_modules -name "*rollup*" -type d || echo "No rollup directories found"
           echo "=== Building application with multiple fallback strategies ==="
 
-          # Стратегия 1: Yarn
-          if yarn run make:mac; then
-            echo "✅ Build succeeded with yarn"
+          # Стратегия 1: Обычная сборка
+          if npm run make:mac; then
+            echo "✅ Build succeeded with npm"
           # Стратегия 2: npm с force install
-          elif (echo "❌ Build failed with yarn, trying npm fallback" && rm -rf node_modules yarn.lock && npm cache clean --force && npm install --force && npm run make:mac); then
+          elif (echo "❌ Build failed, trying npm with force install" && rm -rf node_modules && npm cache clean --force && npm install --force && npm run make:mac); then
             echo "✅ Build succeeded with npm force install"
           # Стратегия 3: npm с legacy-peer-deps
           elif (echo "❌ Build failed with npm force, trying with legacy-peer-deps" && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npm run make:mac); then
