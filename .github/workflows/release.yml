@@ -193,6 +193,14 @@ jobs:
           echo "=== Build Job Info ==="
           echo "OS: ${{ matrix.os }}"
           echo "Event: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "=== Environment Configuration ==="
+          echo "VITE_APP_ENV will be: ${{ github.ref_name == 'release-beta' && 'beta' || 'production' }}"
+          echo "APP_INSTANCE_ID pattern: bottle-code-app-{type}-{version}-{os}"
+          echo "Release type: ${{ github.ref_name == 'release-beta' && 'beta' || 'prod' }}"
+          echo "Version: ${{ needs.release.outputs.version || 'dev' }}"
+          echo "OS suffix: ${{ matrix.os == 'windows-latest' && 'win' || (matrix.os == 'ubuntu-latest' && 'linux' || 'macos') }}"
+          echo "Final APP_INSTANCE_ID will be: bottle-code-app-${{ github.ref_name == 'release-beta' && 'beta' || 'prod' }}-${{ needs.release.outputs.version || 'dev' }}-${{ matrix.os == 'windows-latest' && 'win' || (matrix.os == 'ubuntu-latest' && 'linux' || 'macos') }}"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -269,6 +277,16 @@ jobs:
         env:
           TARGET_PLATFORM: win32
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Environment variables based on branch
+          NODE_ENV: production
+          VITE_APP_ENV: ${{ github.ref_name == 'release-beta' && 'beta' || 'production' }}
+          # Yandex Cloud Logging secrets
+          YANDEX_CLOUD_LOGGING_ENABLED: true
+          YANDEX_USE_SDK: true
+          YANDEX_SERVICE_ACCOUNT_KEY: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_SERVICE_ACCOUNT_KEY_BETA || secrets.YANDEX_SERVICE_ACCOUNT_KEY_PRODUCTION }}
+          YANDEX_FOLDER_ID: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_FOLDER_ID_BETA || secrets.YANDEX_FOLDER_ID_PRODUCTION }}
+          YANDEX_LOG_GROUP_ID: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_LOG_GROUP_ID_BETA || secrets.YANDEX_LOG_GROUP_ID_PRODUCTION }}
+          APP_INSTANCE_ID: bottle-code-app-${{ github.ref_name == 'release-beta' && 'beta' || 'prod' }}-${{ needs.release.outputs.version || 'dev' }}-win
         run: npm run make:win
 
       - name: Build application (Linux)
@@ -276,6 +294,16 @@ jobs:
         env:
           TARGET_PLATFORM: linux
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Environment variables based on branch
+          NODE_ENV: production
+          VITE_APP_ENV: ${{ github.ref_name == 'release-beta' && 'beta' || 'production' }}
+          # Yandex Cloud Logging secrets
+          YANDEX_CLOUD_LOGGING_ENABLED: true
+          YANDEX_USE_SDK: true
+          YANDEX_SERVICE_ACCOUNT_KEY: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_SERVICE_ACCOUNT_KEY_BETA || secrets.YANDEX_SERVICE_ACCOUNT_KEY_PRODUCTION }}
+          YANDEX_FOLDER_ID: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_FOLDER_ID_BETA || secrets.YANDEX_FOLDER_ID_PRODUCTION }}
+          YANDEX_LOG_GROUP_ID: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_LOG_GROUP_ID_BETA || secrets.YANDEX_LOG_GROUP_ID_PRODUCTION }}
+          APP_INSTANCE_ID: bottle-code-app-${{ github.ref_name == 'release-beta' && 'beta' || 'prod' }}-${{ needs.release.outputs.version || 'dev' }}-linux
         run: npm run make:linux
 
       - name: Build application (macOS)
@@ -283,6 +311,16 @@ jobs:
         env:
           TARGET_PLATFORM: darwin
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Environment variables based on branch
+          NODE_ENV: production
+          VITE_APP_ENV: ${{ github.ref_name == 'release-beta' && 'beta' || 'production' }}
+          # Yandex Cloud Logging secrets
+          YANDEX_CLOUD_LOGGING_ENABLED: true
+          YANDEX_USE_SDK: true
+          YANDEX_SERVICE_ACCOUNT_KEY: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_SERVICE_ACCOUNT_KEY_BETA || secrets.YANDEX_SERVICE_ACCOUNT_KEY_PRODUCTION }}
+          YANDEX_FOLDER_ID: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_FOLDER_ID_BETA || secrets.YANDEX_FOLDER_ID_PRODUCTION }}
+          YANDEX_LOG_GROUP_ID: ${{ github.ref_name == 'release-beta' && secrets.YANDEX_LOG_GROUP_ID_BETA || secrets.YANDEX_LOG_GROUP_ID_PRODUCTION }}
+          APP_INSTANCE_ID: bottle-code-app-${{ github.ref_name == 'release-beta' && 'beta' || 'prod' }}-${{ needs.release.outputs.version || 'dev' }}-macos
           # Устанавливаем переменные для корректной работы с нативными модулями
           npm_config_target_platform: darwin
           npm_config_cache: ~/.npm

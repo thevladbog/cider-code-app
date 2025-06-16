@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { logger } from './services';
 
 // Для версии 10.5.0 используйте require
 const { SerialPort } = require('serialport');
@@ -10,7 +11,7 @@ let dataBuffer = '';
 
 // Настройка обработки данных с COM-порта
 export function setupSerialPort() {
-  console.log('Serial port service initialized');
+  logger.info('Serial port service initialized');
 }
 
 // Получение списка доступных COM-портов
@@ -33,7 +34,7 @@ export async function listSerialPorts() {
       productId: port.productId || '',
     }));
   } catch (error) {
-    console.error('Error listing serial ports:', error);
+    logger.error('Error listing serial ports', { error: (error as Error).message });
     throw error;
   }
 }
@@ -73,7 +74,7 @@ export async function connectToPort(portPath: string) {
 
     // Обработка ошибок
     (currentPort as SerialPortType).on('error', (err: Error) => {
-      console.error('Serial port error:', err);
+      logger.error('Serial port error', { error: err.message });
       ipcMain.emit('serial-port-error', null, err.message);
     });
 
@@ -85,10 +86,10 @@ export async function connectToPort(portPath: string) {
       });
     });
 
-    console.log(`Connected to serial port: ${portPath}`);
+    logger.info(`Connected to serial port`, { portPath });
     return true;
   } catch (error) {
-    console.error('Error connecting to port:', error);
+    logger.error('Error connecting to port', { error: (error as Error).message, portPath });
     throw error;
   }
 }
@@ -107,10 +108,10 @@ export async function disconnectFromPort() {
       });
     });
     currentPort = null;
-    console.log('Disconnected from serial port');
+    logger.info('Disconnected from serial port');
     return true;
   } catch (error) {
-    console.error('Error disconnecting from port:', error);
+    logger.error('Error disconnecting from port', { error: (error as Error).message });
     throw error;
   }
 }
@@ -143,7 +144,7 @@ export async function sendDataToPort(data: string) {
 
     return true;
   } catch (error) {
-    console.error('Error sending data to port:', error);
+    logger.error('Error sending data to port', { error: (error as Error).message });
     throw error;
   }
 }

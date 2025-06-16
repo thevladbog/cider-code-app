@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from './services';
 
 // Определяем схему для хранения данных
 interface StoreSchema {
@@ -44,7 +45,7 @@ class SimpleFileStore {
         this.data = JSON.parse(rawData);
       }
     } catch (error) {
-      console.error('Failed to load store data:', error);
+      logger.error('Failed to load store data', { error: (error as Error).message });
       this.data = {};
     }
   }
@@ -53,7 +54,7 @@ class SimpleFileStore {
     try {
       fs.writeFileSync(this.storePath, JSON.stringify(this.data, null, 2));
     } catch (error) {
-      console.error('Failed to save store data:', error);
+      logger.error('Failed to save store data', { error: (error as Error).message });
     }
   }
 

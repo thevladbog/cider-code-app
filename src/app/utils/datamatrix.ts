@@ -1,4 +1,5 @@
 import { DataMatrixData } from '../types';
+import { rendererLogger } from './rendererLogger';
 
 /**
  * Парсинг Datamatrix кода в соответствии с указанным форматом:
@@ -13,7 +14,7 @@ export function parseDataMatrix(dataMatrixCode: string): DataMatrixData | null {
     // Например, ]d2 или просто опускать его. Мы нормализуем входные данные.
     const cleanCode = dataMatrixCode.trim();
 
-    console.log('Parsing DataMatrix code:', { original: dataMatrixCode, clean: cleanCode });
+    rendererLogger.debug('Parsing DataMatrix code', { original: dataMatrixCode, clean: cleanCode });
 
     // Пробуем разные варианты парсинга
     let match: RegExpMatchArray | null = null;
@@ -23,7 +24,7 @@ export function parseDataMatrix(dataMatrixCode: string): DataMatrixData | null {
     match = cleanCode.match(mainRegex);
 
     if (match) {
-      console.log('Matched with main regex:', match);
+      rendererLogger.debug('Matched with main regex', { match });
     } else {
       // Альтернативный формат с возможным FN1 между серийным номером и кодом проверки
       // eslint-disable-next-line no-control-regex
@@ -31,30 +32,29 @@ export function parseDataMatrix(dataMatrixCode: string): DataMatrixData | null {
       match = cleanCode.match(fnRegex);
 
       if (match) {
-        console.log('Matched with FN1 regex:', match);
+        rendererLogger.debug('Matched with FN1 regex', { match });
       } else {
         // Более гибкий поиск с нежадным квантификатором
         const flexibleRegex = /^01(\d{14})21(\d{1})(.{6}).*?93(.{4})$/;
         match = cleanCode.match(flexibleRegex);
 
         if (match) {
-          console.log('Matched with flexible regex:', match);
+          rendererLogger.debug('Matched with flexible regex', { match });
         }
       }
     }
 
     if (!match) {
-      console.error(
-        'Invalid DataMatrix format. Expected: 01XXXXXXXXXXXXXXXX21YZZZZZZZ93WWWW, got:',
-        cleanCode
-      );
+      rendererLogger.error('Invalid DataMatrix format', {
+        expected: '01XXXXXXXXXXXXXXXX21YZZZZZZZ93WWWW',
+        received: cleanCode,
+      });
 
       // Попробуем найти части по отдельности для диагностики
       const gtinMatch = cleanCode.match(/^01(\d{14})/);
       const serialMatch = cleanCode.match(/21(\d{1})(.{6})/);
       const verificationMatch = cleanCode.match(/93(.{4})/);
-
-      console.log('Diagnostic matches:', {
+      rendererLogger.debug('Diagnostic matches', {
         gtin: gtinMatch?.[1],
         serial: serialMatch ? { countryCode: serialMatch[1], serialNumber: serialMatch[2] } : null,
         verification: verificationMatch?.[1],
@@ -71,10 +71,12 @@ export function parseDataMatrix(dataMatrixCode: string): DataMatrixData | null {
       rawData: dataMatrixCode, // Сохраняем исходный код
     };
 
-    console.log('Successfully parsed DataMatrix:', result);
+    rendererLogger.info('Successfully parsed DataMatrix', { result });
     return result;
   } catch (error) {
-    console.error('Error parsing DataMatrix code:', error);
+    rendererLogger.error('Error parsing DataMatrix code', {
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+    });
     return null;
   }
 }
@@ -192,30 +194,30 @@ export function normalizeSSCCCode(ssccCode: string): string {
   try {
     let cleanCode = ssccCode.trim();
 
-    console.log('Normalizing SSCC code:', { original: ssccCode, clean: cleanCode });
+    rendererLogger.debug('Normalizing SSCC code', { original: ssccCode, clean: cleanCode });
 
     // Удаляем префикс ]C1 который добавляют некоторые сканеры для SSCC (Application Identifier 00)
     if (cleanCode.startsWith(']C1')) {
       cleanCode = cleanCode.substring(3);
-      console.log('Removed ]C1 prefix:', cleanCode);
+      rendererLogger.debug('Removed ]C1 prefix', { cleanCode });
     }
 
     // Удаляем другие возможные префиксы сканеров
     if (cleanCode.startsWith(']d2')) {
       cleanCode = cleanCode.substring(3);
-      console.log('Removed ]d2 prefix:', cleanCode);
+      rendererLogger.debug('Removed ]d2 prefix', { cleanCode });
     } // Поддерживаем формат вида ]C100046800899000001977 - длинный SSCC с префиксом
     // Сначала проверяем, есть ли корректный 18-значный SSCC в конце строки
     const endSSCCMatch = cleanCode.match(/(\d{18})$/);
     if (endSSCCMatch) {
       cleanCode = endSSCCMatch[1];
-      console.log('Extracted 18-digit SSCC from end of code:', cleanCode);
+      rendererLogger.debug('Extracted 18-digit SSCC from end of code', { cleanCode });
     } else {
       // Если SSCC начинается с 00, то это правильный формат (Application Identifier 00)
       if (cleanCode.startsWith('00') && cleanCode.length === 20) {
         // Убираем AI и оставляем только 18-значный SSCC
         cleanCode = cleanCode.substring(2);
-        console.log('Removed AI 00 prefix:', cleanCode);
+        rendererLogger.debug('Removed AI 00 prefix', { cleanCode });
       } else {
         // Удаляем все нецифровые символы
         cleanCode = cleanCode.replace(/\D/g, '');
@@ -223,25 +225,26 @@ export function normalizeSSCCCode(ssccCode: string): string {
         // Если получилось больше 18 цифр, берем последние 18
         if (cleanCode.length > 18) {
           cleanCode = cleanCode.slice(-18);
-          console.log('Took last 18 digits:', cleanCode);
+          rendererLogger.debug('Took last 18 digits', { cleanCode });
         }
       }
     }
 
     // SSCC должен быть 18 цифр
     if (cleanCode.length === 18) {
-      console.log('Successfully normalized SSCC:', cleanCode);
+      rendererLogger.info('Successfully normalized SSCC', { cleanCode });
       return cleanCode;
     }
-
-    console.warn('Invalid SSCC length after normalization:', {
+    rendererLogger.warn('Invalid SSCC length after normalization', {
       length: cleanCode.length,
       code: cleanCode,
     });
 
     return cleanCode; // Возвращаем как есть для дальнейшей обработки
   } catch (error) {
-    console.error('Error normalizing SSCC code:', error);
+    rendererLogger.error('Error normalizing SSCC code', {
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+    });
     return ssccCode; // Возвращаем исходный код в случае ошибки
   }
 }
@@ -257,7 +260,7 @@ export function compareSSCCCodes(scannedSSCC: string, expectedSSCC: string): boo
   const normalizedScanned = normalizeSSCCCode(scannedSSCC);
   const normalizedExpected = normalizeSSCCCode(expectedSSCC);
 
-  console.log('Comparing SSCC codes:', {
+  rendererLogger.debug('Comparing SSCC codes', {
     scanned: { original: scannedSSCC, normalized: normalizedScanned },
     expected: { original: expectedSSCC, normalized: normalizedExpected },
     match: normalizedScanned === normalizedExpected,

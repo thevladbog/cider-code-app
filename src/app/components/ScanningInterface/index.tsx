@@ -1,10 +1,11 @@
 import { Button, Card, Text } from '@gravity-ui/uikit';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { useBackup, usePackagingWithVerification } from '@/app/hooks';
 import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
 import { DataMatrixData, IShiftScheme, ShiftStatus } from '@/app/types';
 import { formatGtin } from '@/app/utils';
+import { rendererLogger } from '@/app/utils/rendererLogger';
 import BackupViewerNew from '../BackupViewer/BackupViewerNew';
 import { PackageVerificationModal } from '../PackageVerificationModal';
 
@@ -22,19 +23,23 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
   const [scanEnabled, setScanEnabled] = useState(true);
   const [showBackupError, setShowBackupError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showBackupViewer, setShowBackupViewer] = useState(false); // Используем хук для бэкапа
+  const [showBackupViewer, setShowBackupViewer] = useState(false);
+
+  // Используем хук для бэкапа
   const { logError, backupError } = useBackup({
     shiftId: shift.id,
     onBackupSuccess: (type, code) => {
-      console.log(`Successfully backed up ${type} code: ${code}`);
+      rendererLogger.info(`Successfully backed up ${type} code`, { type, code });
     },
     onBackupError: (error, type, code) => {
-      console.error(`Error backing up ${type} code ${code}: ${error}`);
+      rendererLogger.error(`Error backing up ${type} code`, { type, code, error });
       setShowBackupError(true);
       // Автоматически скрываем сообщение об ошибке через 3 секунды
       setTimeout(() => setShowBackupError(false), 3000);
     },
-  }); // Используем новый хук для упаковки с верификацией
+  });
+
+  // Используем новый хук для упаковки с верификацией
   const {
     isWaitingForVerification,
     pendingSSCC,
@@ -56,14 +61,14 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
     shift,
     enabled: scanEnabled && shift.status === ShiftStatus.PLANNED,
     onScanSuccess: async (data: DataMatrixData) => {
-      console.log('Successfully scanned:', data);
+      rendererLogger.info('Successfully scanned', { data });
 
       // Код успешно отсканирован, данные хранятся во внутреннем состоянии сканера
       // Сохранение в бэкап произойдет только в момент верификации упаковки
       // через savePackageToBackup в handleVerificationSuccess
     },
     onScanError: async (message: string) => {
-      console.error('Scan error:', message);
+      rendererLogger.error('Scan error', { message });
 
       // Логируем ошибку в бэкап
       await logError('unknown_code', 'product', message, {
@@ -72,7 +77,7 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
       });
     },
     onDuplicateScan: async (data: DataMatrixData) => {
-      console.log('Duplicate scan detected:', data);
+      rendererLogger.warn('Duplicate scan detected', { data });
 
       // Логируем дублированное сканирование как ошибку
       const codeKey = `${data.gtin}_${data.countryCode}${data.serialNumber}`;
@@ -87,7 +92,7 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
       });
     },
     onInvalidProduct: async (data: DataMatrixData) => {
-      console.log('Invalid product scanned:', data);
+      rendererLogger.warn('Invalid product scanned', { data });
 
       // Логируем неверный продукт как ошибку
       const codeKey = `${data.gtin}_${data.countryCode}${data.serialNumber}`;
@@ -102,7 +107,7 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
       });
     },
     onBoxPacked: async (packedSSCC: string, nextSSCC: string, itemCodes: string[]) => {
-      console.log(`Box packed: ${packedSSCC}, next SSCC: ${nextSSCC}`);
+      rendererLogger.info('Box packed', { packedSSCC, nextSSCC });
 
       // Используем новый процесс упаковки с верификацией
       // Сохранение в бэкап произойдет только в момент верификации
@@ -116,9 +121,9 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
         // Открываем модальное окно для верификации
         setIsModalOpen(true);
 
-        console.log(`Prepared packaging for verification: ${ssccForVerification}`);
+        rendererLogger.info('Prepared packaging for verification', { ssccForVerification });
       } catch (error) {
-        console.error('Error preparing packaging for verification:', error);
+        rendererLogger.error('Error preparing packaging for verification', { error });
         // Логируем ошибку упаковки
         await logError(packedSSCC, 'package', `Ошибка подготовки верификации: ${error}`, {
           packedSSCC,
@@ -129,26 +134,33 @@ export const ScanningInterface: React.FC<ScanningInterfaceProps> = ({
       }
     },
     onSSCCInitialized: async (sscc: string) => {
-      console.log('SSCC initialized:', sscc);
+      rendererLogger.info('SSCC initialized', { sscc });
 
       // SSCC инициализирован, но сохранение в бэкап произойдет
       // только в момент верификации упаковки через savePackageToBackup
     },
-  });
-  // Оповещаем родительский компонент об изменении количества отсканированных кодов
+  }); // Оповещаем родительский компонент об изменении количества отсканированных кодов
+  // Используем useRef для отслеживания предыдущего значения, чтобы избежать бесконечных ререндеров
+  const prevCountRef = useRef(scannedCodes.length);
+
   useEffect(() => {
-    onScanCountUpdated?.(scannedCodes.length);
+    // Вызываем callback только если количество действительно изменилось
+    if (prevCountRef.current !== scannedCodes.length && onScanCountUpdated) {
+      prevCountRef.current = scannedCodes.length;
+      onScanCountUpdated(scannedCodes.length);
+    }
   }, [scannedCodes.length, onScanCountUpdated]);
+
   // Обработчик успешной верификации
   const handleVerificationSuccess = async () => {
-    console.log('=== handleVerificationSuccess called ===');
+    rendererLogger.debug('handleVerificationSuccess called');
     try {
       const nextSSCC = await finalizePendingPackaging();
-      console.log(`Packaging finalized. Next SSCC: ${nextSSCC}`);
+      rendererLogger.info('Packaging finalized', { nextSSCC });
 
       setIsModalOpen(false);
     } catch (error) {
-      console.error('Error finalizing packaging:', error);
+      rendererLogger.error('Error finalizing packaging', { error });
     }
   };
   // Обработчик отмены верификации

@@ -27,6 +27,7 @@
  */
 
 import './app/app';
+import { rendererLogger } from './app/utils/rendererLogger';
 import './index.css';
 
-console.log('👋 This message is being logged by "renderer.ts", included via Vite');
+rendererLogger.info('👋 This message is being logged by "renderer.ts", included via Vite');

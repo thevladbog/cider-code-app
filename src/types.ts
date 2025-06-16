@@ -1,5 +1,7 @@
 // types.ts
 
+import { LogMessage, LogResult } from './services/loggerTypes';
+
 // Типы для API Electron
 export interface ElectronAPI {
   // Сканер
@@ -93,6 +95,9 @@ export interface ElectronAPI {
   toggleFullscreen: () => Promise<boolean>;
   quitApp: () => Promise<void>;
   playSound: (soundName: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Логирование в облако
+  sendLog: (logData: LogMessage) => Promise<LogResult>;
 }
 
 // Информация о COM-порте

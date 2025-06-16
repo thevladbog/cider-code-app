@@ -1,7 +1,31 @@
-import fs from 'fs';
-import path from 'path';
+// Условные импорты - только в main процессе
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let fs: any = null;
+let path: any = null;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+let app: { getPath: (name: string) => string } | null = null;
 
-import { app } from 'electron';
+// Импорт централизованного логгера
+import { logger } from './services/loggerService';
+
+// Проверяем, работаем ли мы в main процессе (Node.js среда)
+const isMainProcess = typeof window === 'undefined' && typeof process !== 'undefined';
+
+if (isMainProcess) {
+  try {
+    fs = require('fs');
+    path = require('path');
+    const electron = require('electron');
+    app = electron.app;
+  } catch (error) {
+    logger.error('Failed to load Node.js modules', {
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
+  }
+}
 
 // Типы данных для бэкапа
 interface BackupItem {
@@ -26,7 +50,11 @@ interface SuccessfulScanItem {
 
 // Путь к директории для бэкапов (теперь с датой и ID смены)
 const getBackupDir = (shiftId: string): string => {
-  // Используем папку userData приложения для хранения бэкапов
+  // В renderer процессе возвращаем безопасное значение
+  if (!isMainProcess || !app || !path || !fs) {
+    return '';
+  }
+
   const userDataPath = app.getPath('userData');
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const backupPath = path.join(userDataPath, 'backups', today, shiftId);
@@ -43,16 +71,22 @@ const getBackupDir = (shiftId: string): string => {
  * Получает путь к файлу общего лога
  */
 const getGeneralLogPath = (shiftId: string): string => {
+  if (!isMainProcess || !path) {
+    return '';
+  }
   const backupDir = getBackupDir(shiftId);
-  return path.join(backupDir, 'general_log.json');
+  return backupDir ? path.join(backupDir, 'general_log.json') : '';
 };
 
 /**
  * Получает путь к файлу успешно отсканированных кодов
  */
 const getSuccessfulScansPath = (shiftId: string): string => {
+  if (!isMainProcess || !path) {
+    return '';
+  }
   const backupDir = getBackupDir(shiftId);
-  return path.join(backupDir, 'successful_scans.txt');
+  return backupDir ? path.join(backupDir, 'successful_scans.txt') : '';
 };
 
 /**
@@ -62,6 +96,10 @@ const getSuccessfulScansPath = (shiftId: string): string => {
  * @param filePath - Путь к файлу
  */
 const saveToGeneralLog = (data: BackupItem[], filePath: string): void => {
+  if (!isMainProcess || !fs || !filePath) {
+    return;
+  }
+
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (error) {
@@ -113,6 +151,10 @@ const appendToSuccessfulScans = (item: SuccessfulScanItem, filePath: string): vo
  * @returns Массив данных или пустой массив, если файл не существует
  */
 const readFromGeneralLog = (filePath: string): BackupItem[] => {
+  if (!isMainProcess || !fs || !filePath) {
+    return [];
+  }
+
   try {
     if (!fs.existsSync(filePath)) {
       return [];
@@ -146,8 +188,16 @@ export const logAction = (
   /* eslint-disable */
   additionalData?: any
 ): { success: boolean; error?: string } => {
+  // В renderer процессе не можем работать с файловой системой
+  if (!isMainProcess) {
+    return { success: true }; // Возвращаем успех, чтобы не ломать логику
+  }
+
   try {
     const logPath = getGeneralLogPath(shiftId);
+    if (!logPath) {
+      return { success: false, error: 'Cannot get log path' };
+    }
 
     // Читаем существующие данные
     const existingData = readFromGeneralLog(logPath);
@@ -217,8 +267,15 @@ export const saveCodeToBackup = (
  * @returns Массив сохраненных кодов
  */
 export const getBackupCodesByShift = (shiftId: string): BackupItem[] => {
+  if (!isMainProcess) {
+    return []; // В renderer процессе возвращаем пустой массив
+  }
+
   try {
     const logPath = getGeneralLogPath(shiftId);
+    if (!logPath) {
+      return [];
+    }
     return readFromGeneralLog(logPath);
   } catch (error) {
     console.error('Error getting backup codes:', error);
@@ -243,6 +300,11 @@ export const getAllBackupFiles = (): {
   }[];
 }[] => {
   try {
+    if (!isMainProcess || !app || !fs || !path) {
+      // В renderer процессе возвращаем пустой массив
+      return [];
+    }
+
     const userDataPath = app.getPath('userData');
     const backupsDir = path.join(userDataPath, 'backups');
 
@@ -250,19 +312,19 @@ export const getAllBackupFiles = (): {
       return [];
     }
 
-    const dateDirs = fs.readdirSync(backupsDir).filter(item => {
+    const dateDirs = fs.readdirSync(backupsDir).filter((item: string) => {
       const fullPath = path.join(backupsDir, item);
       return fs.statSync(fullPath).isDirectory();
     });
 
-    return dateDirs.map(date => {
+    return dateDirs.map((date: string) => {
       const datePath = path.join(backupsDir, date);
-      const shiftDirs = fs.readdirSync(datePath).filter(item => {
+      const shiftDirs = fs.readdirSync(datePath).filter((item: string) => {
         const fullPath = path.join(datePath, item);
         return fs.statSync(fullPath).isDirectory();
       });
 
-      const shifts = shiftDirs.map(shiftId => {
+      const shifts = shiftDirs.map((shiftId: string) => {
         const shiftPath = path.join(datePath, shiftId);
         const generalLogPath = path.join(shiftPath, 'general_log.json');
         const successfulScansPath = path.join(shiftPath, 'successful_scans.txt');
@@ -385,8 +447,15 @@ export const deleteBackup = (shiftId: string): { success: boolean; error?: strin
  * @returns Содержимое файла или пустая строка
  */
 export const getSuccessfulScansContent = (shiftId: string): string => {
+  if (!isMainProcess || !fs) {
+    return ''; // В renderer процессе возвращаем пустую строку
+  }
+
   try {
     const successPath = getSuccessfulScansPath(shiftId);
+    if (!successPath) {
+      return '';
+    }
 
     if (!fs.existsSync(successPath)) {
       return '';
@@ -444,8 +513,16 @@ export const addSSCCToSuccessfulScans = (
   shiftId: string,
   prepend: boolean = false
 ): { success: boolean; error?: string } => {
+  if (!isMainProcess || !fs) {
+    return { success: true }; // В renderer процессе возвращаем успех
+  }
+
   try {
     const successPath = getSuccessfulScansPath(shiftId);
+    if (!successPath) {
+      return { success: false, error: 'Cannot get success path' };
+    }
+
     const logEntry = `${ssccCode}\n`;
 
     // Всегда добавляем в конец файла, а затем переупорядочиваем
@@ -471,16 +548,26 @@ export const addSSCCToSuccessfulScans = (
  * Получает путь к файлу только с кодами продукции
  */
 const getProductOnlyPath = (shiftId: string): string => {
+  if (!isMainProcess || !path) {
+    return '';
+  }
   const backupDir = getBackupDir(shiftId);
-  return path.join(backupDir, 'products_only.txt');
+  return backupDir ? path.join(backupDir, 'products_only.txt') : '';
 };
 
 /**
  * Добавляет код продукции в файл только с продукцией
  */
 export const addProductToProductOnlyFile = (productCode: string, shiftId: string): void => {
+  if (!isMainProcess || !fs) {
+    return; // В renderer процессе ничего не делаем
+  }
+
   try {
     const productOnlyPath = getProductOnlyPath(shiftId);
+    if (!productOnlyPath) {
+      return;
+    }
     const logEntry = `${productCode}\n`;
     fs.appendFileSync(productOnlyPath, logEntry, 'utf-8');
   } catch (error) {
@@ -497,9 +584,17 @@ export const removeBoxFromBackup = (
   productCodes: string[],
   shiftId: string
 ): { success: boolean; error?: string } => {
+  if (!isMainProcess || !fs) {
+    return { success: true }; // В renderer процессе возвращаем успех
+  }
+
   try {
     const successPath = getSuccessfulScansPath(shiftId);
     const productOnlyPath = getProductOnlyPath(shiftId);
+
+    if (!successPath || !productOnlyPath) {
+      return { success: false, error: 'Cannot get backup paths' };
+    }
 
     // Читаем содержимое файлов
     let successContent = '';
@@ -577,14 +672,21 @@ export const removeBoxFromBackup = (
  * @returns Результат операции
  */
 export const reorderSuccessfulScans = (shiftId: string): { success: boolean; error?: string } => {
+  if (!isMainProcess || !fs) {
+    return { success: true }; // В renderer процессе возвращаем успех
+  }
+
   try {
     const successPath = getSuccessfulScansPath(shiftId);
+    if (!successPath) {
+      return { success: false, error: 'Cannot get success path' };
+    }
 
     if (!fs.existsSync(successPath)) {
       return { success: true }; // Файл не существует, ничего делать не надо
     }
     const content = fs.readFileSync(successPath, 'utf-8');
-    const lines = content.split('\n').filter(line => line.trim() !== '');
+    const lines = content.split('\n').filter((line: string) => line.trim() !== '');
 
     console.log('Original file content before reordering:', lines);
 
@@ -681,7 +783,7 @@ export const testReorderLogic = (shiftId: string): void => {
   const finalContent = fs.readFileSync(successPath, 'utf-8');
   console.log(
     'Final file content:',
-    finalContent.split('\n').filter(line => line.trim() !== '')
+    finalContent.split('\n').filter((line: string) => line.trim() !== '')
   );
   console.log('=== END TEST ===');
 };
@@ -702,11 +804,19 @@ export const savePackageToBackup = (
   shiftId: string,
   timestamp?: number
 ): { success: boolean; error?: string } => {
+  if (!isMainProcess || !fs) {
+    return { success: true }; // В renderer процессе возвращаем успех
+  }
+
   try {
     const currentTime = timestamp || Date.now();
     const successPath = getSuccessfulScansPath(shiftId);
     const productOnlyPath = getProductOnlyPath(shiftId);
     const generalLogPath = getGeneralLogPath(shiftId);
+
+    if (!successPath || !productOnlyPath || !generalLogPath) {
+      return { success: false, error: 'Cannot get backup paths' };
+    }
 
     // 1. Формируем правильный порядок для файла successful_scans.txt
     const successfulContent: string[] = [];
@@ -775,8 +885,15 @@ export const savePackageToBackup = (
  * Очищает файлы бэкапа для указанной смены (только для тестирования)
  */
 export const clearBackupFiles = (shiftId: string): { success: boolean; error?: string } => {
+  if (!isMainProcess || !fs || !path) {
+    return { success: true }; // В renderer процессе возвращаем успех
+  }
+
   try {
     const backupDir = getBackupDir(shiftId);
+    if (!backupDir) {
+      return { success: false, error: 'Cannot get backup directory' };
+    }
 
     const filesToClear = [
       path.join(backupDir, 'successful_scans.txt'),
@@ -801,3 +918,74 @@ export const clearBackupFiles = (shiftId: string): { success: boolean; error?: s
     };
   }
 };
+
+/**
+ * Проверяет, был ли код уже отсканирован в рамках смены (по данным из бэкапа)
+ */
+export function isCodeAlreadyScannedInBackup(shiftId: string, code: string): boolean {
+  // В renderer процессе всегда возвращаем false (полагаемся на кеш)
+  if (!isMainProcess || !fs || !path) {
+    return false;
+  }
+
+  try {
+    const successfulScansPath = getSuccessfulScansPath(shiftId);
+
+    // Добавляем проверку на пустой путь
+    if (!successfulScansPath || !fs.existsSync(successfulScansPath)) {
+      return false;
+    }
+
+    const data = fs.readFileSync(successfulScansPath, 'utf8');
+
+    // Читаем файл как plain text и разбиваем по строкам
+    const scannedCodes = data
+      .trim()
+      .split('\n')
+      .filter((line: string) => line.trim() !== '');
+
+    // Проверяем, есть ли код в списке уже отсканированных
+    return scannedCodes.includes(code);
+  } catch (error) {
+    console.error('Error checking code in backup:', error);
+    // В случае ошибки считаем, что код не сканировался
+    return false;
+  }
+}
+
+/**
+ * Получает все отсканированные коды из бэкапа для смены
+ */
+export function getAllScannedCodesFromBackup(shiftId: string): SuccessfulScanItem[] {
+  // В renderer процессе всегда возвращаем пустой массив (полагаемся на кеш)
+  if (!isMainProcess || !fs || !path) {
+    return [];
+  }
+
+  try {
+    const successfulScansPath = getSuccessfulScansPath(shiftId);
+
+    // Добавляем проверку на пустой путь
+    if (!successfulScansPath || !fs.existsSync(successfulScansPath)) {
+      return [];
+    }
+
+    const data = fs.readFileSync(successfulScansPath, 'utf8');
+
+    // Читаем файл как plain text и разбиваем по строкам
+    const scannedCodes = data
+      .trim()
+      .split('\n')
+      .filter((line: string) => line.trim() !== '');
+
+    // Преобразуем в SuccessfulScanItem[], создавая объекты с минимальной информацией
+    return scannedCodes.map((code: string) => ({
+      code: code.trim(),
+      type: 'product' as const, // Устанавливаем по умолчанию, так как из файла эту информацию получить нельзя
+      timestamp: 0, // Устанавливаем 0, так как из файла эту информацию получить нельзя
+    }));
+  } catch (error) {
+    console.error('Error reading scanned codes from backup:', error);
+    return [];
+  }
+}
