@@ -1,17 +1,15 @@
 ## [1.0.0-beta.19](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.18...v1.0.0-beta.19) (2025-06-16)
 
-
 ### Features
 
-* implement centralized cloud logging with Yandex Cloud integration ([3644698](https://github.com/thevladbog/cider-code-app/commit/3644698adc13c8e636675d563b3bae0b77cba99f))
-
+- implement centralized cloud logging with Yandex Cloud integration ([3644698](https://github.com/thevladbog/cider-code-app/commit/3644698adc13c8e636675d563b3bae0b77cba99f))
 
 ### Bug Fixes
 
-* fixed issues ([1cc48c5](https://github.com/thevladbog/cider-code-app/commit/1cc48c5a31dd3d205fe203fbee1b6117fdbc3995))
-* fixed issues ([a87dffd](https://github.com/thevladbog/cider-code-app/commit/a87dffd2c91d84a67a0c5dce0a0a007dd6039e8f))
-* fixed minor issues ([e299e59](https://github.com/thevladbog/cider-code-app/commit/e299e59f7a4d1bfbbcecaa1b4fafa730eaef075b))
-* **style:** auto-format code after release [skip ci] ([203a1cf](https://github.com/thevladbog/cider-code-app/commit/203a1cf952af96d28e7a328b0d3c7b1d3ac1a993))
+- fixed issues ([1cc48c5](https://github.com/thevladbog/cider-code-app/commit/1cc48c5a31dd3d205fe203fbee1b6117fdbc3995))
+- fixed issues ([a87dffd](https://github.com/thevladbog/cider-code-app/commit/a87dffd2c91d84a67a0c5dce0a0a007dd6039e8f))
+- fixed minor issues ([e299e59](https://github.com/thevladbog/cider-code-app/commit/e299e59f7a4d1bfbbcecaa1b4fafa730eaef075b))
+- **style:** auto-format code after release [skip ci] ([203a1cf](https://github.com/thevladbog/cider-code-app/commit/203a1cf952af96d28e7a328b0d3c7b1d3ac1a993))
 
 ## [1.0.0-beta.18](https://github.com/thevladbog/cider-code-app/compare/v1.0.0-beta.17...v1.0.0-beta.18) (2025-06-15)
 
