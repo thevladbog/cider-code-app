@@ -51,11 +51,30 @@ function blockMetadataRequests() {
         ) {
           console.error('🚫 ЗАБЛОКИРОВАН HTTP запрос к metadata service:', url);
           const error = new Error(`BLOCKED: Metadata service access denied - ${url}`);
-          if (callback) {
-            process.nextTick(() => callback(error));
-            return;
-          }
-          throw error;
+
+          // Создаем stub ClientRequest объект для предотвращения крашей
+          const { EventEmitter } = require('events');
+          const stubRequest = new EventEmitter();
+
+          // Добавляем необходимые методы ClientRequest
+          stubRequest.write = () => false;
+          stubRequest.end = () => stubRequest;
+          stubRequest.abort = () => stubRequest;
+          stubRequest.destroy = () => stubRequest;
+          stubRequest.setTimeout = () => stubRequest;
+          stubRequest.setNoDelay = () => stubRequest;
+          stubRequest.setSocketKeepAlive = () => stubRequest;
+
+          // Эмулируем ошибку асинхронно
+          process.nextTick(() => {
+            if (callback) {
+              callback(error);
+            } else {
+              stubRequest.emit('error', error);
+            }
+          });
+
+          return stubRequest;
         }
 
         return original.call(this, options, callback);

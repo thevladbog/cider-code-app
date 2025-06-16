@@ -100,7 +100,7 @@ export class YandexCloudAuthFixer {
       return true;
     }
 
-    if (iamToken && serviceAccountKey) {
+    if (iamToken) {
       console.log('🔄 Попытка обновления IAM токена...');
       const newToken = await iamTokenManager.forceRefresh();
       if (newToken) {

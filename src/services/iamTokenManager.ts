@@ -76,18 +76,54 @@ export class YandexIAMTokenManager {
 
       console.log('Получение нового IAM токена...');
 
-      // Вместо использования SDK для получения токена, рекомендуем Service Account Key
-      console.warn(
-        'ВНИМАНИЕ: Автоматическое обновление IAM токена требует дополнительной настройки. ' +
-          'Рекомендуется использовать Service Account Key напрямую, так как он не истекает.'
+      // Используем Service Account Key для получения IAM токена
+      const jwt = await this.createJWT(serviceAccountKey);
+      if (!jwt) {
+        console.error('Не удалось создать JWT токен');
+        return null;
+      }
+
+      // Отправляем запрос к Yandex Cloud IAM API
+      const response = await fetch('https://iam.api.cloud.yandex.net/iam/v1/tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jwt: jwt,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Ошибка получения IAM токена:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Детали ошибки:', errorText);
+        return null;
+      }
+
+      const tokenData = await response.json();
+      const newToken = tokenData.iamToken;
+
+      if (!newToken) {
+        console.error('IAM токен не получен из ответа API');
+        return null;
+      }
+
+      // Обновляем метаданные токена
+      this.lastTokenRefresh = new Date();
+      this.tokenExpirationTime = new Date(
+        tokenData.expiresAt || Date.now() + this.TOKEN_LIFETIME_HOURS * 60 * 60 * 1000
       );
 
-      console.warn(
-        'РЕШЕНИЕ: Установите переменную окружения YANDEX_SERVICE_ACCOUNT_KEY ' +
-          'и уберите YANDEX_IAM_TOKEN для автоматического управления токенами.'
-      );
+      // Обновляем переменную окружения с новым токеном
+      process.env.YANDEX_IAM_TOKEN = newToken;
 
-      return null;
+      console.log('✅ IAM токен успешно обновлен');
+      await logger.info('IAM токен обновлен', {
+        expiresAt: this.tokenExpirationTime.toISOString(),
+      });
+
+      return newToken;
     } catch (error) {
       console.error('Ошибка обновления IAM токена:', error);
       await logger.error('Ошибка обновления IAM токена', {
@@ -151,6 +187,71 @@ export class YandexIAMTokenManager {
   async forceRefresh(serviceAccountKey?: ServiceAccountKey): Promise<string | null> {
     this.tokenExpirationTime = new Date(); // Принудительно помечаем как истекший
     return await this.refreshIAMToken(serviceAccountKey);
+  }
+
+  /**
+   * Создает JWT токен для аутентификации Service Account
+   */
+  private async createJWT(serviceAccountKey: ServiceAccountKey): Promise<string | null> {
+    try {
+      // Импортируем crypto модуль для создания подписи
+      const crypto = await import('crypto');
+
+      const now = Math.floor(Date.now() / 1000);
+      const iat = now; // issued at
+      const exp = now + 3600; // expires in 1 hour
+
+      // Создаем заголовок JWT
+      const header = {
+        alg: 'PS256',
+        typ: 'JWT',
+        kid: serviceAccountKey.id,
+      };
+
+      // Создаем payload JWT
+      const payload = {
+        iss: serviceAccountKey.service_account_id, // service account ID
+        aud: 'https://iam.api.cloud.yandex.net/iam/v1/tokens',
+        iat: iat,
+        exp: exp,
+      };
+
+      // Кодируем заголовок и payload в base64url
+      const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
+      const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
+
+      // Создаем строку для подписи
+      const signingString = `${encodedHeader}.${encodedPayload}`;
+
+      // Создаем подпись с использованием приватного ключа
+      const signature = crypto.sign('RSA-SHA256', Buffer.from(signingString), {
+        key: serviceAccountKey.private_key,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      });
+
+      // Кодируем подпись в base64url
+      const encodedSignature = this.base64UrlEncode(signature);
+
+      // Собираем JWT токен
+      const jwt = `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+
+      return jwt;
+    } catch (error) {
+      console.error('Ошибка создания JWT токена:', error);
+      await logger.error('Ошибка создания JWT токена', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Кодирует данные в формат base64url
+   */
+  private base64UrlEncode(data: string | Buffer): string {
+    const base64 = Buffer.from(data).toString('base64');
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   }
 }
 
