@@ -3,6 +3,15 @@
  * Проверяет корректную работу VITE_APP_ENV во всех компонентах
  */
 
+// Проверяем, что мы работаем в Node.js окружении, а не в браузере
+if (typeof window !== 'undefined' || typeof process === 'undefined' || !process.versions?.node) {
+  console.error(
+    'This test file can only run in Node.js environment, not in browser/renderer context'
+  );
+  console.log('To run this test, use: npx tsx src/services/testEnvironmentUnified.ts');
+  throw new Error('Node.js environment required');
+}
+
 // Загружаем переменные из .env для тестирования
 try {
   require('dotenv').config();
@@ -77,7 +86,7 @@ async function runEnvironmentTest() {
   logEnvironmentInfo();
 
   // 4. Тестируем логгер с environment
-  logger.info('Environment unified test started', {
+  await logger.info('Environment unified test started', {
     testType: 'environment-unified',
     currentEnvironment: environment,
     apiUrl: envConfig.apiUrl,
@@ -105,12 +114,21 @@ async function runEnvironmentTest() {
 
   // В Vite environment
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const importMeta = (globalThis as any).import?.meta;
-    if (importMeta && importMeta.env) {
-      console.log('- import.meta.env.VITE_APP_ENV:', importMeta.env.VITE_APP_ENV);
-      console.log('- import.meta.env.DEV:', importMeta.env.DEV);
-      console.log('- import.meta.env.PROD:', importMeta.env.PROD);
+    interface ViteImportMeta extends ImportMeta {
+      env?: {
+        VITE_APP_ENV?: string;
+        DEV?: boolean;
+        PROD?: boolean;
+      };
+    }
+
+    if (typeof import.meta !== 'undefined' && (import.meta as ViteImportMeta).env) {
+      const viteEnv = (import.meta as ViteImportMeta).env!;
+      console.log('- import.meta.env.VITE_APP_ENV:', viteEnv.VITE_APP_ENV);
+      console.log('- import.meta.env.DEV:', viteEnv.DEV);
+      console.log('- import.meta.env.PROD:', viteEnv.PROD);
+    } else {
+      console.log('- import.meta.env not available in current context');
     }
   } catch {
     console.log('- import.meta.env not available in current context');
@@ -123,10 +141,13 @@ async function runEnvironmentTest() {
     configuredApiUrl: envConfig.apiUrl,
   };
 
-  logger.debug('Debug log with environment', testData);
-  logger.info('Info log with environment', testData);
-  logger.warn('Warning log with environment', testData);
-  logger.error('Error log with environment', { ...testData, errorType: 'test-error' });
+  // Await all logging calls to ensure they complete before proceeding
+  await Promise.all([
+    logger.debug('Debug log with environment', testData),
+    logger.info('Info log with environment', testData),
+    logger.warn('Warning log with environment', testData),
+    logger.error('Error log with environment', { ...testData, errorType: 'test-error' }),
+  ]);
 
   console.log('✅ Environment unified test completed');
   console.log('Check Yandex Cloud logs for environment field in jsonPayload');

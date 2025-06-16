@@ -393,7 +393,14 @@ export class YandexCloudLogger {
     };
 
     console.log('Отправляем payload в Yandex Cloud Logging:', JSON.stringify(payload, null, 2));
-    console.log('Authorization header:', this.httpClient.defaults.headers.common['Authorization']);
+
+    // Only log Authorization header in development mode for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(
+        'Authorization header:',
+        this.httpClient.defaults.headers.common['Authorization']
+      );
+    }
 
     // Попробуем разные возможные endpoints для gRPC-Web с retry логикой
     const endpoints = [
@@ -411,7 +418,7 @@ export class YandexCloudLogger {
         const remainingTotalRetries = Math.max(0, this.retryConfig.maxTotalRetries - totalAttempts);
         const endpointMaxRetries = Math.min(this.retryConfig.maxRetries, remainingTotalRetries);
 
-        if (endpointMaxRetries < 0) {
+        if (endpointMaxRetries === 0) {
           console.warn(
             `Достигнут лимит общих попыток (${this.retryConfig.maxTotalRetries}), пропускаем endpoint ${endpoint}`
           );
@@ -422,16 +429,21 @@ export class YandexCloudLogger {
           `Пытаемся отправить на endpoint ${endpoint} с максимум ${endpointMaxRetries + 1} попытками`
         );
 
-        await this.retryableRequest(endpoint, payload, endpointMaxRetries);
-        totalAttempts += endpointMaxRetries + 1; // Учитываем попытки
-
-        console.log(`Успешно отправлено через ${endpoint} после ${totalAttempts} попыток`);
-        return; // Успешная отправка, выходим
-      } catch (error: unknown) {
-        totalAttempts += this.retryConfig.maxRetries + 1; // Учитываем все попытки для этого endpoint
+        const actualAttempts = await this.retryableRequest(endpoint, payload, endpointMaxRetries);
+        totalAttempts += actualAttempts; // Add the actual number of attempts made
 
         console.log(
-          `Все попытки на endpoint ${endpoint} завершились ошибкой:`,
+          `Успешно отправлено через ${endpoint} после ${actualAttempts} попыток (общих попыток: ${totalAttempts})`
+        );
+        return; // Успешная отправка, выходим
+      } catch (error: unknown) {
+        // Extract actual attempts from the error if available
+        const errorWithAttempts = error as Error & { actualAttempts?: number };
+        const actualAttempts = errorWithAttempts?.actualAttempts || this.retryConfig.maxRetries + 1;
+        totalAttempts += actualAttempts; // Add the actual number of attempts made
+
+        console.log(
+          `Все попытки на endpoint ${endpoint} завершились ошибкой (${actualAttempts} попыток):`,
           axios.isAxiosError(error) ? error.response?.status : 'Unknown error'
         );
 
@@ -665,10 +677,13 @@ export class YandexCloudLogger {
     endpoint: string,
     payload: Record<string, unknown>,
     maxRetries: number = this.retryConfig.maxRetries
-  ): Promise<void> {
+  ): Promise<number> {
     let lastError: unknown;
+    let actualAttempts = 0;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      actualAttempts = attempt + 1; // Track the actual number of attempts made
+
       try {
         console.log(
           `Попытка ${attempt + 1}/${maxRetries + 1} отправки на endpoint: ${this.httpClient.defaults.baseURL}${endpoint}`
@@ -682,7 +697,7 @@ export class YandexCloudLogger {
         console.log(
           `Логи успешно отправлены в Yandex Cloud Logging через ${endpoint} (статус: ${response.status})`
         );
-        return; // Успешно отправлено
+        return actualAttempts; // Return the actual number of attempts made
       } catch (error: unknown) {
         lastError = error;
 
@@ -712,6 +727,15 @@ export class YandexCloudLogger {
     }
 
     // Если дошли до сюда, значит все попытки не удались
-    throw lastError;
+    // Return the actual attempts made before throwing
+    const error = new Error(
+      `All ${actualAttempts} attempts failed for endpoint ${endpoint}`
+    ) as Error & {
+      actualAttempts: number;
+      originalError: unknown;
+    };
+    error.actualAttempts = actualAttempts;
+    error.originalError = lastError;
+    throw error;
   }
 }

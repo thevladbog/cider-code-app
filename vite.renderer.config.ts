@@ -9,6 +9,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(), // Fast Refresh включен по умолчанию
+    // Plugin to exclude Node.js-only test files from being processed
+    {
+      name: 'exclude-node-test-files',
+      resolveId(id) {
+        // Exclude test files that use Node.js-only dependencies
+        if (
+          id.includes('testEnvironment') ||
+          id.includes('testApiConfig') ||
+          id.includes('loggerTest') ||
+          id.includes('yandexCloudLoggerSDK')
+        ) {
+          return false;
+        }
+      },
+    },
   ],
   root: resolve(__dirname, 'src'),
   build: {
@@ -41,6 +56,17 @@ export default defineConfig(({ mode }) => ({
         'tty',
         'dgram',
         'dns',
+        // Yandex Cloud SDK and gRPC dependencies - should not be bundled in renderer
+        '@yandex-cloud/nodejs-sdk',
+        '@grpc/grpc-js',
+        '@grpc/proto-loader',
+        'grpc',
+        'dotenv',
+        // Test files that use Node.js-only dependencies
+        /.*testEnvironment.*/,
+        /.*testApiConfig.*/,
+        /.*loggerTest.*/,
+        /.*yandexCloudLoggerSDK.*/,
       ],
       // Добавляем принудительное использование правильного бинарного файла Rollup
     },
@@ -79,15 +105,51 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || mode),
     // Определяем Node.js переменные - используем легкие заглушки вместо undefined
     global: 'globalThis',
-    __dirname: 'undefined',
-    __filename: 'undefined',
-    // Легкая заглушка для process - сохраняет API поверхность для runtime проверок
-    process: '{ env: {}, platform: "browser", versions: {} }',
-    // Легкая заглушка для Buffer - сохраняет API поверхность для runtime проверок
-    Buffer:
-      '{ isBuffer: function() { return false; }, from: function() { throw new Error("Buffer not available in renderer"); } }',
+    // Proper object stubs for process and Buffer to avoid runtime errors
+    process: JSON.stringify({
+      env: {},
+      platform: 'browser',
+      versions: {},
+      nextTick: function (callback) {
+        setTimeout(callback, 0);
+      },
+      cwd: function () {
+        return '/';
+      },
+      exit: function () {
+        console.warn('process.exit() called in renderer process');
+      },
+    }),
+    Buffer: JSON.stringify({
+      isBuffer: function () {
+        return false;
+      },
+      from: function () {
+        throw new Error('Buffer not available in renderer');
+      },
+      alloc: function () {
+        throw new Error('Buffer not available in renderer');
+      },
+      allocUnsafe: function () {
+        throw new Error('Buffer not available in renderer');
+      },
+      concat: function () {
+        throw new Error('Buffer not available in renderer');
+      },
+    }),
   },
   optimizeDeps: {
-    exclude: ['electron', 'fs', 'path', 'os', 'child_process'],
+    exclude: [
+      'electron',
+      'fs',
+      'path',
+      'os',
+      'child_process',
+      '@yandex-cloud/nodejs-sdk',
+      '@grpc/grpc-js',
+      '@grpc/proto-loader',
+      'grpc',
+      'dotenv',
+    ],
   },
 }));

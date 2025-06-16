@@ -5,6 +5,9 @@ let path: any = null;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 let app: { getPath: (name: string) => string } | null = null;
 
+// Импорт централизованного логгера
+import { logger } from './services/loggerService';
+
 // Проверяем, работаем ли мы в main процессе (Node.js среда)
 const isMainProcess = typeof window === 'undefined' && typeof process !== 'undefined';
 
@@ -15,7 +18,12 @@ if (isMainProcess) {
     const electron = require('electron');
     app = electron.app;
   } catch (error) {
-    console.error('Failed to load Node.js modules:', error);
+    logger.error('Failed to load Node.js modules', {
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack }
+          : error,
+    });
   }
 }
 

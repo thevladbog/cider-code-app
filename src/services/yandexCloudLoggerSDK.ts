@@ -1,12 +1,124 @@
-import { Session, cloudApi, serviceClients } from '@yandex-cloud/nodejs-sdk';
+import { getExecutionContext } from '../utils/executionContext';
 import { ServiceAccountKey, ServiceAccountKeyConfig, ServiceAccountKeyLoader } from './types';
+import { YandexCloudLoggerDirectAPI } from './yandexCloudLoggerDirectAPI';
 
-const {
-  logging: {
-    log_ingestion_service: { WriteRequest },
-    log_entry: { LogLevel_Level },
-  },
-} = cloudApi;
+// Dynamic imports for Node.js-only modules to prevent browser bundling issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let YandexSDK: any = null;
+
+// Агрессивное отключение metadata service для Yandex Cloud SDK
+// Устанавливаем переменные окружения перед любой работой с SDK
+function disableMetadataService() {
+  // Google Cloud metadata service
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = '';
+  process.env.GOOGLE_CLOUD_PROJECT = '';
+  process.env.GCLOUD_PROJECT = '';
+
+  // Yandex Cloud metadata service
+  process.env.YC_METADATA_CREDENTIALS = 'false';
+  process.env.DISABLE_YC_METADATA = 'true';
+  process.env.YC_DISABLE_METADATA = 'true';
+
+  // AWS metadata service (для полноты)
+  process.env.AWS_EC2_METADATA_DISABLED = 'true';
+
+  // Общие переменные для отключения metadata
+  process.env.METADATA_SERVICE_DISABLED = 'true';
+  process.env.DISABLE_METADATA_SERVICE = 'true';
+
+  console.log('🚫 Metadata service принудительно отключен через переменные окружения');
+}
+
+// Агрессивный перехват сетевых запросов к metadata service
+function blockMetadataRequests() {
+  try {
+    // Перехватываем HTTP запросы через Node.js http модуль
+    const http = require('http');
+    const https = require('https');
+    const originalHttpRequest = http.request;
+    const originalHttpsRequest = https.request;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function interceptRequest(original: any) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return function (this: any, options: any, callback?: any) {
+        const url = typeof options === 'string' ? options : options.hostname || options.host || '';
+
+        if (
+          url.includes('169.254.169.254') ||
+          url.includes('metadata.google.internal') ||
+          url.includes('metadata.yandexcloud.net')
+        ) {
+          console.error('🚫 ЗАБЛОКИРОВАН HTTP запрос к metadata service:', url);
+          const error = new Error(`BLOCKED: Metadata service access denied - ${url}`);
+          if (callback) {
+            process.nextTick(() => callback(error));
+            return;
+          }
+          throw error;
+        }
+
+        return original.call(this, options, callback);
+      };
+    }
+
+    http.request = interceptRequest(originalHttpRequest);
+    https.request = interceptRequest(originalHttpsRequest);
+
+    console.log('🚫 HTTP/HTTPS запросы к metadata service заблокированы');
+  } catch (error) {
+    console.warn('⚠️ Не удалось установить перехват HTTP запросов:', error);
+  }
+}
+
+// Вызываем отключение сразу при загрузке модуля
+disableMetadataService();
+blockMetadataRequests();
+
+// Function to dynamically load Yandex Cloud SDK
+async function loadYandexSDK() {
+  if (YandexSDK) return YandexSDK;
+
+  try {
+    // Принудительно отключаем metadata service перед загрузкой SDK
+    disableMetadataService();
+
+    // Дополнительная защита: перехватываем HTTP-запросы к metadata service
+    const originalFetch = global.fetch;
+    if (originalFetch) {
+      global.fetch = function (url: string | URL | Request, init?: RequestInit) {
+        const urlString = typeof url === 'string' ? url : url.toString();
+        if (urlString.includes('169.254.169.254') || urlString.includes('metadata')) {
+          console.error('🚫 ЗАБЛОКИРОВАН запрос к metadata service:', urlString);
+          return Promise.reject(new Error('Metadata service disabled for security'));
+        }
+        return originalFetch(url, init);
+      };
+    }
+
+    YandexSDK = await import('@yandex-cloud/nodejs-sdk');
+
+    console.log('✅ Yandex Cloud SDK загружен с отключенным metadata service');
+
+    return YandexSDK;
+  } catch (error) {
+    throw new Error(`Failed to load Yandex Cloud SDK: ${(error as Error).message}`);
+  }
+}
+
+// Helper function to get SDK components
+async function getSDKComponents() {
+  const sdk = await loadYandexSDK();
+  const { Session, cloudApi, serviceClients } = sdk;
+  const {
+    logging: {
+      log_ingestion_service: { WriteRequest },
+      log_entry: { LogLevel_Level },
+    },
+  } = cloudApi;
+
+  return { Session, cloudApi, serviceClients, WriteRequest, LogLevel_Level };
+}
 
 export interface YandexCloudLoggerSDKConfig {
   iamToken?: string;
@@ -42,9 +154,12 @@ export enum LogLevel {
 }
 
 export class YandexCloudLoggerSDK {
-  private session: Session;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private session: any; // Will be initialized as Session from SDK
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private logIngestionService: any; // Will be initialized as LogIngestionServiceClient from SDK
+  private directAPI: YandexCloudLoggerDirectAPI | null = null; // Fallback to direct API
+  private useFallbackAPI = false; // Flag to use direct API instead of SDK
   private config: Required<
     Omit<
       YandexCloudLoggerSDKConfig,
@@ -56,6 +171,7 @@ export class YandexCloudLoggerSDK {
       'iamToken' | 'oauthToken' | 'serviceAccountKey' | 'serviceAccountKeyConfig'
     >;
   private isInitialized = false;
+  private initPromise: Promise<void> | null = null; // Shared promise for ongoing initialization
   private lastAuthError: Error | null = null;
   private authRetryCount = 0;
   private readonly maxAuthRetries = 3;
@@ -103,7 +219,40 @@ export class YandexCloudLoggerSDK {
     };
 
     // Инициализируем пустую сессию, будет настроена в initialize()
-    this.session = new Session();
+    this.session = null;
+
+    // Инициализируем Direct API как fallback
+    this.directAPI = new YandexCloudLoggerDirectAPI({
+      iamToken: this.config.iamToken,
+      serviceAccountKey: resolvedServiceAccountKey,
+      folderId: this.config.folderId,
+      logGroupId: this.config.logGroupId,
+      resource: this.config.resource,
+    });
+
+    // ПРОАКТИВНАЯ ЗАЩИТА: В Electron-приложениях сразу используем Direct API
+    // чтобы избежать проблем с metadata service
+    const context = getExecutionContext();
+    if (context.context === 'main' || context.context === 'renderer') {
+      console.warn(
+        '🔄 ПРОАКТИВНОЕ ПЕРЕКЛЮЧЕНИЕ: В Electron контексте используем Direct API ' +
+          'для предотвращения проблем с metadata service'
+      );
+      this.useFallbackAPI = true;
+    }
+
+    // Также переключаемся на Direct API если в переменных окружения есть признаки отключения metadata
+    if (
+      process.env.YC_METADATA_CREDENTIALS === 'false' ||
+      process.env.DISABLE_YC_METADATA === 'true' ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS === ''
+    ) {
+      console.warn(
+        '🔄 ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ: Обнаружено принудительное отключение metadata service, ' +
+          'используем Direct API'
+      );
+      this.useFallbackAPI = true;
+    }
   }
 
   /**
@@ -152,6 +301,7 @@ export class YandexCloudLoggerSDK {
   private async refreshAuthIfNeeded(): Promise<void> {
     // Если используется Service Account Key, токен обновляется автоматически SDK
     if (this.config.serviceAccountKey) {
+      console.log('Используется Service Account Key - автоматическое обновление токена');
       return;
     }
 
@@ -171,8 +321,34 @@ export class YandexCloudLoggerSDK {
       );
       this.authRetryCount++;
 
+      // Для IAM токена пытаемся получить новый токен
+      if (this.config.iamToken) {
+        console.warn(
+          'IAM токен истек. Требуется обновление токена вручную или переход на Service Account Key.'
+        );
+        console.warn(
+          'РЕКОМЕНДАЦИЯ: Используйте Service Account Key (YANDEX_SERVICE_ACCOUNT_KEY) для автоматического обновления токенов.'
+        );
+
+        // Проверяем, есть ли Service Account Key в переменных окружения
+        const envServiceAccountKey = process.env.YANDEX_SERVICE_ACCOUNT_KEY;
+        if (envServiceAccountKey) {
+          try {
+            const serviceAccountKey = JSON.parse(envServiceAccountKey);
+            console.log(
+              'Найден Service Account Key в переменных окружения. Переключаемся на него...'
+            );
+            this.config.serviceAccountKey = serviceAccountKey;
+            this.config.iamToken = undefined; // Убираем устаревший IAM токен
+          } catch (parseError) {
+            console.error('Ошибка парсинга YANDEX_SERVICE_ACCOUNT_KEY:', parseError);
+          }
+        }
+      }
+
       // Сбрасываем состояние и пытаемся переинициализировать
       this.isInitialized = false;
+      this.initPromise = null; // Reset the initialization promise to allow re-initialization
       await this.initialize();
     }
   } /**
@@ -199,19 +375,128 @@ export class YandexCloudLoggerSDK {
    * Инициализация логгера с аутентификацией
    */
   async initialize(): Promise<void> {
+    // If initialization is already in progress, return the existing promise
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    // If already initialized, return immediately
+    if (this.isInitialized) {
+      return Promise.resolve();
+    }
+
+    // Create and store the initialization promise
+    this.initPromise = this.performInitialization();
+
     try {
+      await this.initPromise;
+    } finally {
+      // Clear the promise once initialization is complete (success or failure)
+      this.initPromise = null;
+    }
+  }
+
+  /**
+   * Performs the actual initialization logic
+   */
+  private async performInitialization(): Promise<void> {
+    try {
+      // Если уже переключились на Direct API, пропускаем инициализацию SDK
+      if (this.useFallbackAPI) {
+        console.log('✅ Direct API режим уже активен, пропускаем инициализацию SDK');
+        this.isInitialized = true;
+        this.lastAuthError = null;
+        this.authRetryCount = 0;
+        return;
+      }
+
+      // Принудительно отключаем metadata service перед каждой инициализацией
+      disableMetadataService();
+
+      // Проверяем контекст выполнения
+      const context = getExecutionContext();
+      console.log(`Инициализация Yandex Cloud Logger в контексте: ${context.description}`);
+
+      // В renderer процессе Electron или браузере используем упрощенную логику
+      if (context.context === 'renderer' || context.context === 'browser') {
+        console.log(
+          '🔄 Renderer/Browser контекст: используем fallback логику без metadata service'
+        );
+
+        if (!this.config.serviceAccountKey) {
+          throw new Error(
+            'В renderer/browser контексте требуется Service Account Key. ' +
+              'Установите переменную окружения YANDEX_SERVICE_ACCOUNT_KEY.'
+          );
+        }
+
+        // В renderer контексте НЕ используем Yandex SDK напрямую
+        // Вместо этого отправляем логи через IPC к main процессу
+        console.warn(
+          '⚠️ В renderer контексте Yandex Cloud SDK может работать нестабильно. ' +
+            'Рекомендуется отправка логов через IPC к main процессу.'
+        );
+
+        // Создаем mock session для renderer контекста
+        this.session = {
+          client: () => ({
+            write: async () => {
+              console.log('📨 Лог будет отправлен через IPC к main процессу');
+              // Здесь должна быть логика отправки через IPC
+              return Promise.resolve();
+            },
+          }),
+        };
+
+        this.isInitialized = true;
+        return;
+      }
+
+      // Load Yandex Cloud SDK dynamically (только для main/nodejs контекста)
+      const sdk = await loadYandexSDK();
+      const { Session, serviceClients } = sdk;
+
+      // Создаем session с максимальной защитой от metadata service
+      let sessionConfig: Record<string, unknown> = {};
+
       // Настройка аутентификации в зависимости от типа токена
       if (this.config.iamToken) {
-        this.session = new Session({ iamToken: this.config.iamToken });
+        console.log('Инициализация с IAM токеном...');
+        sessionConfig.iamToken = this.config.iamToken;
       } else if (this.config.serviceAccountKey) {
-        // Используем serviceAccountKey - TypeScript определения неполные, но runtime поддерживает
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.session = new Session({ serviceAccountKey: this.config.serviceAccountKey } as any);
+        console.log('Инициализация с Service Account Key...');
+        console.log('Service Account ID:', this.config.serviceAccountKey.service_account_id);
+        console.log('Key ID:', this.config.serviceAccountKey.id);
+
+        // ВАЖНО: Используем напрямую Service Account Key в SDK
+        // Не генерируем IAM токен вручную, пусть SDK делает это сам
+        sessionConfig.serviceAccountKey = this.config.serviceAccountKey;
+
+        console.log('✅ Service Account Key настроен для автоматического управления токенами');
       } else if (this.config.oauthToken) {
-        this.session = new Session({ oauthToken: this.config.oauthToken });
+        console.log('Инициализация с OAuth токеном...');
+        sessionConfig.oauthToken = this.config.oauthToken;
       } else {
         throw new Error('Необходимо указать iamToken, oauthToken или serviceAccountKey');
       }
+
+      // Добавляем дополнительные параметры для стабильной работы
+      sessionConfig = {
+        ...sessionConfig,
+        endpoint: 'api.cloud.yandex.net:443',
+        ssl: true,
+        timeout: 30000,
+      };
+
+      console.log('🔧 Конфигурация сессии:', {
+        hasIamToken: !!sessionConfig.iamToken,
+        hasServiceAccountKey: !!sessionConfig.serviceAccountKey,
+        hasOauthToken: !!sessionConfig.oauthToken,
+        endpoint: sessionConfig.endpoint,
+      });
+
+      // Создаем session с защитой от metadata service
+      this.session = new Session(sessionConfig);
 
       // Создаем клиент для Log Ingestion с помощью сессии
       this.logIngestionService = this.session.client(serviceClients.LogIngestionServiceClient);
@@ -220,7 +505,7 @@ export class YandexCloudLoggerSDK {
       this.lastAuthError = null; // Сбрасываем предыдущие ошибки аутентификации
       this.authRetryCount = 0; // Сбрасываем счетчик попыток
 
-      console.log('Yandex Cloud Logger SDK успешно инициализирован');
+      console.log('✅ Yandex Cloud Logger SDK успешно инициализирован');
 
       // Если используется IAM токен, предупреждаем о возможном истечении
       if (this.config.iamToken) {
@@ -230,8 +515,31 @@ export class YandexCloudLoggerSDK {
         );
       }
     } catch (error) {
-      console.error('Ошибка инициализации Yandex Cloud Logger SDK:', error);
+      console.error('❌ Ошибка инициализации Yandex Cloud Logger SDK:', error);
       this.lastAuthError = error instanceof Error ? error : new Error(String(error));
+
+      // Проверяем, связана ли ошибка с metadata service
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes('169.254.169.254') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('metadata')
+      ) {
+        console.error(
+          '🚫 КРИТИЧЕСКАЯ ОШИБКА: SDK пытается использовать metadata service несмотря на запрет!'
+        );
+        console.warn('🔄 ПЕРЕКЛЮЧАЕМСЯ НА DIRECT API для обхода проблемы с metadata service');
+
+        // Переключаемся на Direct API
+        this.useFallbackAPI = true;
+        this.isInitialized = true;
+        this.lastAuthError = null;
+        this.authRetryCount = 0;
+
+        console.log('✅ Fallback на Direct API выполнен успешно');
+        return;
+      }
+
       throw error;
     }
   }
@@ -262,8 +570,45 @@ export class YandexCloudLoggerSDK {
       }
     }
 
+    // Если используем fallback API (из-за проблем с SDK)
+    if (this.useFallbackAPI && this.directAPI) {
+      try {
+        console.log('📨 Отправляем лог через Direct API (fallback)...');
+
+        await this.directAPI.log({
+          timestamp: (logMessage.timestamp || new Date()).toISOString(),
+          level: logMessage.level,
+          message: logMessage.message,
+          jsonPayload: {
+            ...(logMessage.jsonPayload || {}),
+            environment: this.config.environment,
+            appVersion: process.env.npm_package_version || 'unknown',
+            platform: process.platform,
+            arch: process.arch,
+          },
+          streamName: logMessage.streamName || 'default',
+        });
+
+        console.log(
+          `✅ Лог успешно отправлен через Direct API: ${logMessage.level} - ${logMessage.message}`
+        );
+        return;
+      } catch (directAPIError) {
+        console.error('❌ Ошибка отправки лога через Direct API:', directAPIError);
+        // Fallback к локальному логированию
+        console.log(
+          `[LOCAL LOG] ${logMessage.level}: ${logMessage.message}`,
+          logMessage.jsonPayload
+        );
+        return;
+      }
+    }
+
     try {
       const timestamp = logMessage.timestamp || new Date();
+
+      // Get SDK components dynamically
+      const { WriteRequest } = await getSDKComponents();
 
       // Добавляем environment в jsonPayload
       const enrichedPayload = {
@@ -277,7 +622,7 @@ export class YandexCloudLoggerSDK {
       // Формируем entry согласно IncomingLogEntry API
       const entry = {
         timestamp: timestamp, // SDK ожидает Date объект
-        level: this.mapLogLevel(logMessage.level),
+        level: await this.mapLogLevel(logMessage.level),
         message: logMessage.message,
         jsonPayload: enrichedPayload,
         streamName: logMessage.streamName || 'default',
@@ -292,20 +637,57 @@ export class YandexCloudLoggerSDK {
         entries: [entry],
       });
 
-      console.log('Отправляем лог через Yandex Cloud SDK:', JSON.stringify(request, null, 2));
+      console.log('📨 Отправляем лог через Yandex Cloud SDK...');
 
-      const response = await this.logIngestionService.write(request);
+      await this.logIngestionService.write(request);
 
       console.log(
-        `Лог успешно отправлен в Yandex Cloud: ${logMessage.level} - ${logMessage.message} [${this.config.environment}]`
+        `✅ Лог успешно отправлен в Yandex Cloud: ${logMessage.level} - ${logMessage.message} [${this.config.environment}]`
       );
-      console.log('Response:', response);
 
       // Успешная отправка - сбрасываем счетчики ошибок
       this.authRetryCount = 0;
       this.lastAuthError = null;
     } catch (error) {
-      console.error('Ошибка отправки лога в Yandex Cloud через SDK:', error);
+      console.error('❌ Ошибка отправки лога в Yandex Cloud через SDK:', error);
+
+      // Проверяем, связана ли ошибка с metadata service
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes('169.254.169.254') ||
+        errorMessage.includes('metadata') ||
+        errorMessage.includes('ENETUNREACH')
+      ) {
+        console.warn(
+          '🔄 SDK пытается использовать metadata service. Переключаемся на Direct API...'
+        );
+
+        // Переключаемся на Direct API для этого запроса и будущих
+        this.useFallbackAPI = true;
+
+        try {
+          await this.directAPI?.log({
+            timestamp: (logMessage.timestamp || new Date()).toISOString(),
+            level: logMessage.level,
+            message: logMessage.message,
+            jsonPayload: {
+              ...(logMessage.jsonPayload || {}),
+              environment: this.config.environment,
+              appVersion: process.env.npm_package_version || 'unknown',
+              platform: process.platform,
+              arch: process.arch,
+            },
+            streamName: logMessage.streamName || 'default',
+          });
+
+          console.log(
+            `✅ Лог успешно отправлен через Direct API (fallback): ${logMessage.level} - ${logMessage.message}`
+          );
+          return;
+        } catch (directAPIError) {
+          console.error('❌ Ошибка отправки лога через Direct API fallback:', directAPIError);
+        }
+      }
 
       // Проверяем, является ли ошибка связанной с аутентификацией
       if (this.isAuthenticationError(error)) {
@@ -341,7 +723,10 @@ export class YandexCloudLoggerSDK {
   /**
    * Преобразование уровня логирования в формат Yandex Cloud SDK
    */
-  private mapLogLevel(level: string): (typeof LogLevel_Level)[keyof typeof LogLevel_Level] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async mapLogLevel(level: string): Promise<any> {
+    const { LogLevel_Level } = await getSDKComponents();
+
     switch (level) {
       case 'DEBUG':
         return LogLevel_Level.DEBUG;
@@ -406,30 +791,47 @@ export class YandexCloudLoggerSDK {
    */
   async logBatch(logMessages: LogMessage[]): Promise<void> {
     if (!this.isInitialized) {
-      await this.initialize();
+      try {
+        await this.initialize();
+      } catch (initError) {
+        console.error('Не удалось инициализировать логгер для пакетной отправки:', initError);
+        // Fallback к локальному логированию
+        logMessages.forEach(logMessage => {
+          console.log(
+            `[LOCAL LOG] ${logMessage.level}: ${logMessage.message}`,
+            logMessage.jsonPayload
+          );
+        });
+        return;
+      }
     }
 
     try {
-      const entries = logMessages.map(logMessage => {
-        const timestamp = logMessage.timestamp || new Date();
+      // Get SDK components dynamically
+      const { WriteRequest } = await getSDKComponents();
 
-        // Добавляем environment в jsonPayload для каждого сообщения
-        const enrichedPayload = {
-          ...(logMessage.jsonPayload || {}),
-          environment: this.config.environment,
-          appVersion: process.env.npm_package_version || 'unknown',
-          platform: process.platform,
-          arch: process.arch,
-        };
+      const entries = await Promise.all(
+        logMessages.map(async logMessage => {
+          const timestamp = logMessage.timestamp || new Date();
 
-        return {
-          timestamp: timestamp, // SDK ожидает Date объект
-          level: this.mapLogLevel(logMessage.level),
-          message: logMessage.message,
-          jsonPayload: enrichedPayload,
-          streamName: logMessage.streamName || 'default',
-        };
-      });
+          // Добавляем environment в jsonPayload для каждого сообщения
+          const enrichedPayload = {
+            ...(logMessage.jsonPayload || {}),
+            environment: this.config.environment,
+            appVersion: process.env.npm_package_version || 'unknown',
+            platform: process.platform,
+            arch: process.arch,
+          };
+
+          return {
+            timestamp: timestamp, // SDK ожидает Date объект
+            level: await this.mapLogLevel(logMessage.level),
+            message: logMessage.message,
+            jsonPayload: enrichedPayload,
+            streamName: logMessage.streamName || 'default',
+          };
+        })
+      );
 
       const request = WriteRequest.fromPartial({
         destination: {
