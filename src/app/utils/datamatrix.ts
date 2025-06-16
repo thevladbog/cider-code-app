@@ -74,7 +74,9 @@ export function parseDataMatrix(dataMatrixCode: string): DataMatrixData | null {
     rendererLogger.info('Successfully parsed DataMatrix', { result });
     return result;
   } catch (error) {
-    rendererLogger.error('Error parsing DataMatrix code', { error });
+    rendererLogger.error('Error parsing DataMatrix code', {
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+    });
     return null;
   }
 }
@@ -240,7 +242,9 @@ export function normalizeSSCCCode(ssccCode: string): string {
 
     return cleanCode; // Возвращаем как есть для дальнейшей обработки
   } catch (error) {
-    rendererLogger.error('Error normalizing SSCC code', { error });
+    rendererLogger.error('Error normalizing SSCC code', {
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+    });
     return ssccCode; // Возвращаем исходный код в случае ошибки
   }
 }

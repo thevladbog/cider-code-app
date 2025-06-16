@@ -1,5 +1,7 @@
 // types.ts
 
+import { LogMessage, LogResult } from './services/loggerTypes';
+
 // Типы для API Electron
 export interface ElectronAPI {
   // Сканер
@@ -95,13 +97,7 @@ export interface ElectronAPI {
   playSound: (soundName: string) => Promise<{ success: boolean; error?: string }>;
 
   // Логирование в облако
-  sendLog: (logData: {
-    level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
-    message: string;
-    payload?: Record<string, unknown>;
-    timestamp: string;
-    source: string;
-  }) => Promise<{ success: boolean; error?: string }>;
+  sendLog: (logData: LogMessage) => Promise<LogResult>;
 }
 
 // Информация о COM-порте

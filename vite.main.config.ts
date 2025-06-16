@@ -1,8 +1,11 @@
 // Этот файл больше не используется. Для сборки main process используйте tsc и tsconfig.json.
 
 import { builtinModules } from 'module';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { defineConfig } from 'vite';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Функция для определения external модулей
 const isExternal = (id: string) => {
@@ -49,10 +52,6 @@ const isExternal = (id: string) => {
 
 // https://vitejs.dev/config
 export default defineConfig({
-  define: {
-    __dirname: '__dirname',
-    __filename: '__filename',
-  },
   build: {
     target: 'node22',
     ssr: true, // Включаем SSR режим для лучшей совместимости с Node.js

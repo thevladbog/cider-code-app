@@ -7,7 +7,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "npx electron-forge start",
-    "start:dev": "cross-env NODE_ENV=development npx electron-forge start",
+    "start:dev": "cross-env NODE_ENV=development VITE_APP_ENV=development npx electron-forge start",
     "package": "npx electron-forge package",
     "make": "npx electron-forge make",
     "clean": "rimraf ./out && rimraf ./dist",
@@ -34,11 +34,13 @@
     "test:logger": "npx ts-node src/services/loggerTest.ts",
     "test:logger:comprehensive": "npx ts-node src/services/loggerTestComprehensive.ts",
     "test:logger:environment": "npx ts-node src/services/loggerTestEnvironment.ts",
-    "test:logger:sdk": "npx ts-node -e \"process.env.YANDEX_USE_SDK='true'; require('./src/services/loggerTestComprehensive.ts');\"",
+    "test:logger:sdk": "cross-env YANDEX_USE_SDK=true npx ts-node src/services/loggerTestComprehensive.ts",
     "test:environment:unified": "npx ts-node src/services/testEnvironmentUnified.ts",
     "test:environment:production": "cross-env NODE_ENV=production VITE_APP_ENV=production npx ts-node src/services/testEnvironmentUnified.ts",
     "test:environment:beta": "cross-env NODE_ENV=production VITE_APP_ENV=beta npx ts-node src/services/testEnvironmentUnified.ts",
-    "test:api:production": "npx ts-node src/services/testApiConfigProduction.ts"
+    "test:api:production": "npx ts-node src/services/testApiConfigProduction.ts",
+    "setup:yandex-logging": "node scripts/setup-yandex-logging.js",
+    "diagnose:logging": "npm run setup:yandex-logging && npm run test:environment:unified"
   },
   "keywords": [],
   "author": {

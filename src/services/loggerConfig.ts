@@ -1,5 +1,5 @@
 import { getAppEnvironment } from '../utils/environment';
-import { ServiceAccountKey } from './yandexCloudLogger';
+import { ServiceAccountKey } from './types';
 import { YandexCloudLoggerSDKConfig } from './yandexCloudLoggerSDK';
 
 /**
@@ -73,6 +73,22 @@ export const getLoggerConfig = (): AppLoggerConfig => {
 
 /**
  * Создание конфигурации для SDK-версии логгера
+ *
+ * РЕШЕНИЕ ПРОБЛЕМЫ ИСТЕЧЕНИЯ ТОКЕНОВ:
+ *
+ * Если вы получаете ошибку "The token has expired", рекомендуется:
+ * 1. Использовать Service Account Key вместо IAM токена для долгосрочной работы
+ * 2. Установить переменную окружения YANDEX_SERVICE_ACCOUNT_KEY с JSON содержимым ключа
+ * 3. Убедиться, что Service Account имеет права logging.writer для указанной лог-группы
+ *
+ * Пример Service Account Key JSON:
+ * {
+ *   "id": "...",
+ *   "service_account_id": "...",
+ *   "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+ * }
+ *
+ * Service Account Key обновляется автоматически SDK и не истекает как IAM токены.
  */
 export const createSDKLoggerConfig = (): AppLoggerSDKConfig => {
   const config: AppLoggerSDKConfig = {

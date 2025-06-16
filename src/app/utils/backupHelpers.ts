@@ -482,7 +482,10 @@ export async function removeLastCodesFromBackup(
     rendererLogger.warn(
       'removeLastCodesFromBackup not implemented yet - codes may remain in backup'
     );
-    return { success: true }; // Возвращаем success для не блокирования UI
+    return {
+      success: false,
+      error: 'Function not implemented yet - codes remain in backup',
+    };
   } catch (error) {
     rendererLogger.error('Error removing codes from backup', { error });
     return {

@@ -43,6 +43,7 @@ import {
 } from './serialPortConfig';
 import { logger } from './services';
 import { createSDKLoggerConfig } from './services/loggerConfig';
+import { LogMessage, LogResult, validateLogData } from './services/loggerTypes';
 import { storeWrapper } from './store-wrapper';
 import { getAppEnvironment } from './utils/environment';
 
@@ -384,51 +385,58 @@ ipcMain.handle('save-backup', async (_, data: unknown, filename: string) => {
 });
 
 // Добавляем обработчик для отправки логов в облако
-ipcMain.handle(
-  'send-log',
-  async (
-    _,
-    logData: {
-      level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
-      message: string;
-      payload?: Record<string, unknown>;
-      timestamp: string;
-      source: string;
-    }
-  ) => {
-    try {
-      // Используем существующий logger для отправки в облако
-      const logPayload = {
-        message: logData.message,
-        level: logData.level,
-        timestamp: logData.timestamp,
-        source: logData.source,
-        ...logData.payload,
+ipcMain.handle('send-log', async (_, logData: LogMessage): Promise<LogResult> => {
+  try {
+    // Validate log data in main process as well for extra safety
+    const validation = validateLogData(logData);
+
+    if (!validation.isValid) {
+      console.error('Log validation failed in main process:', validation.error);
+      return {
+        success: false,
+        error: `Log validation failed: ${validation.error}`,
       };
-
-      // Отправляем лог через существующий логгер
-      switch (logData.level) {
-        case 'DEBUG':
-          logger.debug(logData.message, logPayload);
-          break;
-        case 'INFO':
-          logger.info(logData.message, logPayload);
-          break;
-        case 'WARN':
-          logger.warn(logData.message, logPayload);
-          break;
-        case 'ERROR':
-          logger.error(logData.message, logPayload);
-          break;
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error sending log to cloud:', error);
-      return { success: false, error: (error as Error).message };
     }
+
+    const sanitizedData = validation.sanitizedData!;
+
+    // Используем существующий logger для отправки в облако
+    const logPayload = {
+      message: sanitizedData.message,
+      level: sanitizedData.level,
+      timestamp: sanitizedData.timestamp,
+      source: sanitizedData.source,
+      ...sanitizedData.payload,
+    };
+
+    // Отправляем лог через существующий логгер
+    switch (sanitizedData.level) {
+      case 'DEBUG':
+        logger.debug(sanitizedData.message, logPayload);
+        break;
+      case 'INFO':
+        logger.info(sanitizedData.message, logPayload);
+        break;
+      case 'WARN':
+        logger.warn(sanitizedData.message, logPayload);
+        break;
+      case 'ERROR':
+        logger.error(sanitizedData.message, logPayload);
+        break;
+      case 'FATAL':
+        logger.error(sanitizedData.message, logPayload); // Use error for FATAL as fallback
+        break;
+      default:
+        logger.info(sanitizedData.message, logPayload); // Default fallback
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = `Error sending log to cloud: ${(error as Error).message}`;
+    console.error(errorMessage, error);
+    return { success: false, error: errorMessage };
   }
-);
+});
 
 ipcMain.handle(
   'save-code-to-backup',

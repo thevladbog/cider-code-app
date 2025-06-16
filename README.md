@@ -261,3 +261,47 @@ yarn publish            # Публикация
 ---
 
 _Разработано с ❤️ для автоматизации складских процессов_
+
+## CI/CD Workflow
+
+Этот проект использует GitHub Actions для автоматической сборки и публикации релизов.
+
+### Ветки и окружения
+
+- **`release-stable`** → Production релизы (`VITE_APP_ENV=production`)
+- **`release-beta`** → Beta релизы (`VITE_APP_ENV=beta`)
+
+### Переменные окружения в CI
+
+Workflow автоматически устанавливает правильные переменные окружения:
+
+#### Production (`release-stable`):
+
+```bash
+NODE_ENV=production
+VITE_APP_ENV=production
+APP_INSTANCE_ID=bottle-code-app-prod-ci
+```
+
+#### Beta (`release-beta`):
+
+```bash
+NODE_ENV=production
+VITE_APP_ENV=beta
+APP_INSTANCE_ID=bottle-code-app-beta-ci
+```
+
+### Yandex Cloud Logging
+
+Для работы логирования в CI необходимо настроить секреты в GitHub.
+См. [GITHUB_SECRETS_SETUP.md](./docs/GITHUB_SECRETS_SETUP.md) для подробных инструкций.
+
+### Semantic Release
+
+Проект использует conventional commits и semantic-release:
+
+- `feat:` → minor версия
+- `fix:` → patch версия
+- `BREAKING CHANGE:` → major версия
+- `beta` канал для тестирования
+- `stable` канал для production

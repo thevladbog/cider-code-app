@@ -923,16 +923,21 @@ export function isCodeAlreadyScannedInBackup(shiftId: string, code: string): boo
   try {
     const successfulScansPath = getSuccessfulScansPath(shiftId);
 
-    // Если файл не существует, значит кодов еще не было
-    if (!fs.existsSync(successfulScansPath)) {
+    // Добавляем проверку на пустой путь
+    if (!successfulScansPath || !fs.existsSync(successfulScansPath)) {
       return false;
     }
 
     const data = fs.readFileSync(successfulScansPath, 'utf8');
-    const scannedItems: SuccessfulScanItem[] = JSON.parse(data);
+
+    // Читаем файл как plain text и разбиваем по строкам
+    const scannedCodes = data
+      .trim()
+      .split('\n')
+      .filter((line: string) => line.trim() !== '');
 
     // Проверяем, есть ли код в списке уже отсканированных
-    return scannedItems.some(item => item.code === code);
+    return scannedCodes.includes(code);
   } catch (error) {
     console.error('Error checking code in backup:', error);
     // В случае ошибки считаем, что код не сканировался
@@ -952,12 +957,25 @@ export function getAllScannedCodesFromBackup(shiftId: string): SuccessfulScanIte
   try {
     const successfulScansPath = getSuccessfulScansPath(shiftId);
 
-    if (!fs.existsSync(successfulScansPath)) {
+    // Добавляем проверку на пустой путь
+    if (!successfulScansPath || !fs.existsSync(successfulScansPath)) {
       return [];
     }
 
     const data = fs.readFileSync(successfulScansPath, 'utf8');
-    return JSON.parse(data);
+
+    // Читаем файл как plain text и разбиваем по строкам
+    const scannedCodes = data
+      .trim()
+      .split('\n')
+      .filter((line: string) => line.trim() !== '');
+
+    // Преобразуем в SuccessfulScanItem[], создавая объекты с минимальной информацией
+    return scannedCodes.map((code: string) => ({
+      code: code.trim(),
+      type: 'product' as const, // Устанавливаем по умолчанию, так как из файла эту информацию получить нельзя
+      timestamp: 0, // Устанавливаем 0, так как из файла эту информацию получить нельзя
+    }));
   } catch (error) {
     console.error('Error reading scanned codes from backup:', error);
     return [];

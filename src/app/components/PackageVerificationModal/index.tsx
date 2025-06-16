@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { verifySSCCCode } from '@/app/services/packagingService';
 import { IShiftScheme } from '@/app/types';
 import { formatSSCC, isDev } from '@/app/utils';
+import { rendererLogger } from '@/app/utils/rendererLogger';
 import styles from './PackageVerificationModal.module.scss';
 
 interface PackageVerificationModalProps {
@@ -25,8 +26,10 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
   shift,
   isLoading = false,
 }) => {
-  console.log('PackageVerificationModal: DEV =', isDev());
-  console.log('PackageVerificationModal: visible =', visible);
+  if (isDev()) {
+    rendererLogger.debug('PackageVerificationModal: DEV mode active');
+    rendererLogger.debug('PackageVerificationModal: visible state', { visible });
+  }
 
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);

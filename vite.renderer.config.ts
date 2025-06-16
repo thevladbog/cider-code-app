@@ -1,6 +1,9 @@
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { defineConfig } from 'vite';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config
 export default defineConfig(({ mode }) => ({
@@ -72,12 +75,17 @@ export default defineConfig(({ mode }) => ({
   define: {
     // Делаем NODE_ENV доступным в renderer процессе через import.meta.env
     'import.meta.env.NODE_ENV': JSON.stringify(mode),
-    // Определяем Node.js переменные как undefined в renderer процессе
+    // Передаем VITE_APP_ENV в renderer процесс
+    'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || mode),
+    // Определяем Node.js переменные - используем легкие заглушки вместо undefined
     global: 'globalThis',
     __dirname: 'undefined',
     __filename: 'undefined',
-    process: 'undefined',
-    Buffer: 'undefined',
+    // Легкая заглушка для process - сохраняет API поверхность для runtime проверок
+    process: '{ env: {}, platform: "browser", versions: {} }',
+    // Легкая заглушка для Buffer - сохраняет API поверхность для runtime проверок
+    Buffer:
+      '{ isBuffer: function() { return false; }, from: function() { throw new Error("Buffer not available in renderer"); } }',
   },
   optimizeDeps: {
     exclude: ['electron', 'fs', 'path', 'os', 'child_process'],

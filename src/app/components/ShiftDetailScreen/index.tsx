@@ -255,7 +255,9 @@ export const ShiftDetailScreen: React.FC = () => {
       setUseCrates(shouldUseCrates);
 
       // Инициализация даты производства
-      console.log('Original plannedDate from API:', shiftResult.plannedDate);
+      rendererLogger.debug('Processing planned date from API', {
+        plannedDate: shiftResult.plannedDate,
+      });
 
       let parsedDate: DateTime | null = null;
       if (shiftResult.plannedDate) {
@@ -296,7 +298,7 @@ export const ShiftDetailScreen: React.FC = () => {
     if (shiftResult.packing && shiftResult.status === 'INPROGRESS' && initializeShiftRef.current) {
       // Используем ref для вызова, чтобы исключить его из зависимостей
       initializeShiftRef.current().catch((error: unknown) => {
-        console.error('Failed to initialize SSCC for shift:', error);
+        rendererLogger.error('Failed to initialize SSCC for shift', { error });
       });
     }
   }, [shift?.result, shift?.result.id]); // Используем только id смены для зависимости

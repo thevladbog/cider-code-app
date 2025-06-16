@@ -57,7 +57,7 @@ async function testYandexCloudLogging() {
   console.log('🚀 ТЕСТИРОВАНИЕ REST API ВЕРСИИ');
   console.log('='.repeat(80));
 
-  if (restConfig.enabled) {
+  if (restConfig.enabled && !restConfig.useSDK) {
     try {
       const restLogger = new YandexCloudLogger(restConfig);
 
