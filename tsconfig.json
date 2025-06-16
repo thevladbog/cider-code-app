@@ -37,10 +37,10 @@
     "src/store-wrapper.ts",
     "src/types.ts",
     "typings.d.ts",
-    "src/global.d.ts"
+    "src/global.d.ts",
+    "src/app/**/*"
   ],
   "exclude": [
-    "src/app/**/*",
     "src/renderer.ts",
     "src/index.html",
     "src/components/**/*",

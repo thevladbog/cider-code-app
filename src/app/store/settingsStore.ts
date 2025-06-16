@@ -2,6 +2,8 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
+import { rendererLogger } from '../utils/rendererLogger';
+
 interface SettingsState {
   // Настройки сканера
   scannerPort: string | null;
@@ -168,7 +170,7 @@ export const initializeSettings = async () => {
       if (voiceEnabled !== undefined) useSettingsStore.getState().setVoiceEnabled(voiceEnabled);
     }
   } catch (error) {
-    console.error('Failed to initialize settings:', error);
+    rendererLogger.error('Failed to initialize settings', { error });
   }
 };
 

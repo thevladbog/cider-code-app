@@ -1,4 +1,5 @@
 import { BackupItem } from '../types';
+import { rendererLogger } from './rendererLogger';
 
 /**
  * Сохраняет код продукции в локальный бэкап
@@ -18,7 +19,7 @@ export async function backupProductCode(
     // Вызываем метод из Electron API
     return await window.electronAPI.saveCodeToBackup(code, 'product', shiftId, additionalData);
   } catch (error) {
-    console.error('Error backing up product code:', error);
+    rendererLogger.error('Error backing up product code', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Ошибка сохранения',
@@ -44,7 +45,7 @@ export async function backupPackageCode(
     // Вызываем метод из Electron API
     return await window.electronAPI.saveCodeToBackup(sscc, 'package', shiftId, additionalData);
   } catch (error) {
-    console.error('Error backing up package code:', error);
+    rendererLogger.error('Error backing up package code', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Ошибка сохранения',
@@ -62,7 +63,7 @@ export async function getBackupCodesForShift(shiftId: string): Promise<BackupIte
   try {
     return await window.electronAPI.getBackupCodesByShift(shiftId);
   } catch (error) {
-    console.error('Error getting backup codes:', error);
+    rendererLogger.error('Error getting backup codes', { error });
     return [];
   }
 }
@@ -79,7 +80,7 @@ export async function exportShiftBackup(
   try {
     return await window.electronAPI.exportBackup(shiftId);
   } catch (error) {
-    console.error('Error exporting backup:', error);
+    rendererLogger.error('Error exporting backup', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Ошибка экспорта',
@@ -201,7 +202,7 @@ export async function logActionToBackup(
       additionalData
     );
   } catch (error) {
-    console.error('Error logging action to backup:', error);
+    rendererLogger.error('Error logging action to backup', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Ошибка логирования',
@@ -219,7 +220,7 @@ export async function getSuccessfulScansForShift(shiftId: string): Promise<strin
   try {
     return await window.electronAPI.getSuccessfulScansContent(shiftId);
   } catch (error) {
-    console.error('Error getting successful scans:', error);
+    rendererLogger.error('Error getting successful scans', { error });
     return '';
   }
 }
@@ -238,7 +239,7 @@ export async function restoreShiftBackup(shiftId: string): Promise<{
   try {
     return await window.electronAPI.restoreBackupData(shiftId);
   } catch (error) {
-    console.error('Error restoring backup:', error);
+    rendererLogger.error('Error restoring backup', { error });
     return {
       generalLog: [],
       successfulScans: '',
@@ -383,7 +384,7 @@ export async function isCodeScannedInShift(
 
     return { isDuplicate: false, foundIn: null };
   } catch (error) {
-    console.error('Error checking code uniqueness:', error);
+    rendererLogger.error('Error checking code uniqueness', { error });
     // В случае ошибки возвращаем false, чтобы не блокировать работу
     return { isDuplicate: false, foundIn: null };
   }
@@ -415,7 +416,7 @@ export async function getAllScannedCodesForShift(shiftId: string): Promise<strin
 
     return Array.from(allCodes);
   } catch (error) {
-    console.error('Error getting all scanned codes:', error);
+    rendererLogger.error('Error getting all scanned codes', { error });
     return [];
   }
 }
@@ -432,25 +433,23 @@ export async function addProductCodeToSuccessfulScans(
   shiftId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log(
-      '📝 Adding product code to successful_scans.txt:',
+    rendererLogger.info('Adding product code to successful_scans.txt', {
       productCode,
-      'for shift:',
-      shiftId
-    );
+      shiftId,
+    });
 
     // Проверяем, что код не пустой
     if (!productCode || productCode.trim() === '') {
-      console.error('❌ Cannot add empty product code to successful_scans.txt');
+      rendererLogger.error('Cannot add empty product code to successful_scans.txt');
       return { success: false, error: 'Product code is empty' };
     }
 
     // Используем существующий API для добавления в successful_scans.txt
     const result = await window.electronAPI.addSSCCToSuccessfulScans(productCode, shiftId);
-    console.log('✅ Product code added to successful_scans.txt:', productCode);
+    rendererLogger.info('Product code added to successful_scans.txt', { productCode });
     return { success: true };
   } catch (error) {
-    console.error('❌ Error adding product code to successful_scans.txt:', error);
+    rendererLogger.error('Error adding product code to successful_scans.txt', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -471,7 +470,7 @@ export async function removeLastCodesFromBackup(
   count: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log(`🗑️ Removing last ${count} codes from backup for shift ${shiftId}`);
+    rendererLogger.info('Removing last codes from backup', { count, shiftId });
 
     if (count <= 0) {
       return { success: true };
@@ -480,10 +479,15 @@ export async function removeLastCodesFromBackup(
     // TODO: Implement API call when backend is ready
     // const result = await window.electronAPI.removeLastCodesFromBackup(shiftId, count);
 
-    console.log(`⚠️ removeLastCodesFromBackup not implemented yet - codes may remain in backup`);
-    return { success: true }; // Возвращаем success для не блокирования UI
+    rendererLogger.warn(
+      'removeLastCodesFromBackup not implemented yet - codes may remain in backup'
+    );
+    return {
+      success: false,
+      error: 'Function not implemented yet - codes remain in backup',
+    };
   } catch (error) {
-    console.error('❌ Error removing codes from backup:', error);
+    rendererLogger.error('Error removing codes from backup', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

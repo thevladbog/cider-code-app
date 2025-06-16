@@ -5,6 +5,7 @@ import {
   PackedCodesResponseDto,
   WriteBoxesCodeDto,
 } from '../api/generated';
+import { rendererLogger } from '../utils/rendererLogger';
 
 /**
  * Интерфейс для управления текущими SSCC кодами по сменам
@@ -55,12 +56,13 @@ export async function initializeSSCCForShift(
       productId,
     };
 
-    console.log(
-      `Initialized SSCC for shift ${shiftId}. First box will be packed with SSCC: ${response.sscc}`
-    );
+    rendererLogger.info('Initialized SSCC for shift', {
+      shiftId,
+      firstSSCC: response.sscc,
+    });
     return response.sscc;
   } catch (error) {
-    console.error('Error initializing SSCC for shift:', error);
+    rendererLogger.error('Error initializing SSCC for shift', { error });
     throw new Error(`Не удалось получить первый SSCC код для смены: ${error}`);
   }
 }
@@ -109,11 +111,11 @@ export async function packCurrentBoxAndGetNextSSCC(
 }> {
   const state = ssccState[shiftId];
 
-  console.log(`packCurrentBoxAndGetNextSSCC called for shift: ${shiftId}`);
-  console.log('Current SSCC state:', state);
+  rendererLogger.debug('packCurrentBoxAndGetNextSSCC called', { shiftId });
+  rendererLogger.debug('Current SSCC state', { state });
 
   if (!state || !state.currentSSCC || !state.currentSSCCId) {
-    console.error(`SSCC состояние не инициализировано для смены ${shiftId}. State:`, state);
+    rendererLogger.error('SSCC state not initialized for shift', { shiftId, state });
     throw new Error(`SSCC состояние не инициализировано для смены ${shiftId}`);
   }
 
@@ -138,21 +140,21 @@ export async function packCurrentBoxAndGetNextSSCC(
     const nextSSCC = packResponse.ssccCode;
     const nextSSCCId = packResponse.id;
 
-    console.log(`Packed box with SSCC: ${ssccForPrinting}, next box will use SSCC: ${nextSSCC}`);
+    rendererLogger.info('Packed box with SSCC', { ssccForPrinting, nextSSCC });
 
     // Обновляем состояние для следующего короба
     state.currentSSCC = nextSSCC; // Новый SSCC для следующего короба
     state.currentSSCCId = nextSSCCId; // ID нового SSCC кода
     state.boxItemCount = 0; // Сбрасываем счетчик товаров
 
-    console.log('Updated SSCC state after packing:', state);
+    rendererLogger.debug('Updated SSCC state after packing', { state });
 
     return {
       packedSSCC: ssccForPrinting, // SSCC код упакованного короба (для печати)
       nextSSCC: nextSSCC, // SSCC код для следующего короба
     };
   } catch (error) {
-    console.error('Error packing box and getting next SSCC:', error);
+    rendererLogger.error('Error packing box and getting next SSCC', { error });
     throw new Error(`Ошибка при упаковке короба: ${error}`);
   }
 }
@@ -222,9 +224,10 @@ export async function finalizePackaging(pendingPackData: {
     // В ответе ssccCode - это уже следующий SSCC код для следующего короба
     const nextSSCC = packResponse.ssccCode;
 
-    console.log(
-      `Finalized packaging for SSCC: ${pendingPackData.ssccCode}, next SSCC: ${nextSSCC}`
-    );
+    rendererLogger.info('Finalized packaging for SSCC', {
+      ssccCode: pendingPackData.ssccCode,
+      nextSSCC,
+    });
 
     // Обновляем состояние для следующего короба
     const state = ssccState[pendingPackData.shiftId];
@@ -236,7 +239,7 @@ export async function finalizePackaging(pendingPackData: {
 
     return { nextSSCC };
   } catch (error) {
-    console.error('Error finalizing packaging:', error);
+    rendererLogger.error('Error finalizing packaging', { error });
     throw new Error(`Ошибка при финализации упаковки: ${error}`);
   }
 }
@@ -274,7 +277,7 @@ export function getCurrentBoxInfo(shiftId: string): {
  */
 export function clearSSCCState(shiftId: string): void {
   delete ssccState[shiftId];
-  console.log(`Cleared SSCC state for shift ${shiftId}`);
+  rendererLogger.info('Cleared SSCC state for shift', { shiftId });
 }
 
 /**
@@ -291,12 +294,12 @@ export function resetCurrentBox(shiftId: string): void {
   const state = ssccState[shiftId];
 
   if (!state) {
-    console.warn(`SSCC state not found for shift ${shiftId}`);
+    rendererLogger.warn('SSCC state not found for shift', { shiftId });
     return;
   }
 
   // Сбрасываем только счетчик товаров в коробе, SSCC остается тем же
   state.boxItemCount = 0;
 
-  console.log(`Reset current box for shift ${shiftId}. Box item count: 0`);
+  rendererLogger.info('Reset current box for shift', { shiftId, boxItemCount: 0 });
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { Device, DeviceStatus } from '../types';
+import { rendererLogger } from '../utils/rendererLogger';
 
 interface DeviceState {
   devices: Device[];
@@ -38,35 +39,34 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
 
   // Обновление статуса устройства
   updateDeviceStatus: (id, newStatus) => {
-    console.log({ id, newStatus });
+    rendererLogger.debug('Updating device status', { id, newStatus });
     const { devices } = get();
     const newDevices = devices.map(device =>
       device.id === id ? { ...device, status: newStatus } : device
     );
-    console.log({ newDevices });
+    rendererLogger.debug('Updated devices list', { newDevices });
 
     set(_state => ({
       devices: newDevices,
     }));
 
     const { devices: settedDev } = get();
-    console.log({ settedDev });
+    rendererLogger.debug('Set devices result', { settedDev });
   },
-
   // Обновление информации о подключении устройства
   updateDeviceConnection: (id, connection) => {
-    console.log({ id, connection });
+    rendererLogger.debug('Updating device connection', { id, connection });
     const { devices } = get();
     const newDevices = devices.map(device =>
       device.id === id ? { ...device, connection: connection } : device
     );
-    console.log({ newDevices });
+    rendererLogger.debug('Updated devices with connection', { newDevices });
     set(_state => ({
       devices: newDevices,
     }));
 
     const { devices: settedDev } = get();
-    console.log({ settedDev });
+    rendererLogger.debug('Connection update result', { settedDev });
   },
 
   // Полная замена списка устройств
@@ -87,7 +87,7 @@ export const initializeDevices = async () => {
       try {
         await window.electronAPI.connectToPort(savedPort);
       } catch (error) {
-        console.error('Failed to connect to saved scanner port:', error);
+        rendererLogger.error('Failed to connect to saved scanner port', { error });
         // В случае ошибки сбрасываем статус
         useDeviceStore.getState().updateDeviceStatus('barcode-scanner', 'disconnected');
         useDeviceStore.getState().updateDeviceConnection('barcode-scanner', null);
@@ -115,6 +115,6 @@ export const initializeDevices = async () => {
       );
     }
   } catch (error) {
-    console.error('Failed to initialize devices:', error);
+    rendererLogger.error('Failed to initialize devices', { error });
   }
 };

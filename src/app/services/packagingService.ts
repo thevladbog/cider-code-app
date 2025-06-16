@@ -1,6 +1,7 @@
 import { packCodes, verifyPackage } from '../api/queries';
 import { DataMatrixData, IShiftScheme, PackageWithSSCC } from '../types';
 import { compareSSCCCodes } from '../utils/datamatrix';
+import { rendererLogger } from '../utils/rendererLogger';
 
 // Импорт функций для генерации этикеток
 const { createSSCCLabelData, generateSSCCLabel } = require('../../printer');
@@ -101,7 +102,7 @@ export async function createPackageWithSSCC(
 
     return newPackage;
   } catch (error) {
-    console.error('Error creating package with SSCC:', error);
+    rendererLogger.error('Error creating package with SSCC', { error });
     throw error;
   }
 }
@@ -134,7 +135,7 @@ export async function verifySSCCCode(
       });
 
       if (!result.success) {
-        console.error('Failed to verify package:', result.message);
+        rendererLogger.error('Failed to verify package', { message: result.message });
         return false;
       }
 
@@ -151,7 +152,7 @@ export async function verifySSCCCode(
 
       return true;
     } catch (error) {
-      console.error('Error verifying SSCC code:', error);
+      rendererLogger.error('Error verifying SSCC code', { error });
       return false;
     }
   }

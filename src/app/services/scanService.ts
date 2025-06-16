@@ -1,5 +1,10 @@
 import { DataMatrixData, IShiftScheme } from '../types';
 import { createDataMatrixKey, isMatchingGtin, parseDataMatrix } from '../utils/datamatrix';
+import { rendererLogger } from '../utils/rendererLogger';
+
+// Импортируем функции для работы с бэкапом
+// Путь может отличаться в зависимости от структуры проекта
+import { getAllScannedCodesFromBackup, isCodeAlreadyScannedInBackup } from '../../backupService';
 
 // Хранение отсканированных кодов в рамках смены
 interface ScanHistory {
@@ -58,24 +63,30 @@ export function checkDataMatrixCode(
 
   // Проверяем соответствие GTIN продукту смены
   const isCorrectProduct = isMatchingGtin(parsedData.gtin, shift.product.gtin);
-
   // Создаем уникальный ключ для кода
   const codeKey = createDataMatrixKey(parsedData);
 
   // Проверяем, сканировался ли уже этот код в рамках текущей смены
   const shiftScans = scanHistoryCache[shift.id] || {};
-  const isDuplicate = codeKey in shiftScans;
+  const isDuplicateInCache = codeKey in shiftScans;
 
-  // Сохраняем информацию о сканировании, даже если это дубликат
-  // Это позволит отслеживать повторные сканирования
-  if (!scanHistoryCache[shift.id]) {
-    scanHistoryCache[shift.id] = {};
+  // Также проверяем в бэкапе (используем raw код)
+  const isDuplicateInBackup = isCodeAlreadyScannedInBackup(shift.id, code);
+
+  // Код считается дубликатом, если он есть либо в кеше, либо в бэкапе
+  const isDuplicate = isDuplicateInCache || isDuplicateInBackup;
+
+  // Сохраняем информацию о сканировании ТОЛЬКО если это не дубликат
+  if (!isDuplicate) {
+    if (!scanHistoryCache[shift.id]) {
+      scanHistoryCache[shift.id] = {};
+    }
+
+    scanHistoryCache[shift.id][codeKey] = {
+      timestamp: Date.now(),
+      data: parsedData,
+    };
   }
-
-  scanHistoryCache[shift.id][codeKey] = {
-    timestamp: Date.now(),
-    data: parsedData,
-  };
 
   // Формируем сообщение и вызываем соответствующие оповещения
   let message;
@@ -112,14 +123,43 @@ export function clearScanHistory(shiftId: string): void {
 }
 
 /**
- * Получает список отсканированных кодов для смены
+ * Получает список отсканированных кодов для смены (из кеша + бэкапа)
  *
  * @param shiftId - ID смены
  * @returns Массив отсканированных кодов
  */
 export function getScannedCodes(shiftId: string): DataMatrixData[] {
+  // Получаем коды из кеша
   const shiftScans = scanHistoryCache[shiftId] || {};
-  return Object.values(shiftScans).map(item => item.data);
+  const cacheData = Object.values(shiftScans).map(item => item.data);
+
+  // Получаем коды из бэкапа
+  const backupData = getAllScannedCodesFromBackup(shiftId);
+
+  // Создаем Map для объединения данных без дубликатов
+  const combinedData = new Map<string, DataMatrixData>();
+
+  // Добавляем данные из бэкапа
+  backupData.forEach(item => {
+    try {
+      // Парсим код из бэкапа для получения DataMatrixData
+      const parsedData = parseDataMatrix(item.code);
+      if (parsedData) {
+        const key = createDataMatrixKey(parsedData);
+        combinedData.set(key, parsedData);
+      }
+    } catch (error) {
+      rendererLogger.warn('Failed to parse backup code', { code: item.code, error });
+    }
+  });
+
+  // Добавляем данные из кеша (они имеют приоритет, если есть конфликты)
+  cacheData.forEach(data => {
+    const key = createDataMatrixKey(data);
+    combinedData.set(key, data);
+  });
+
+  return Array.from(combinedData.values());
 }
 
 /**
@@ -170,7 +210,53 @@ export function removeCodesFromHistory(shiftId: string, codesToRemove: DataMatri
     delete shiftScans[codeKey];
   }
 
-  console.log(`🗑️ Removed ${codesToRemove.length} codes from scan history for shift ${shiftId}`);
+  rendererLogger.info(
+    `Removed ${codesToRemove.length} codes from scan history for shift ${shiftId}`
+  );
+}
+
+/**
+ * Синхронизирует кеш сканирования с данными из бэкапа
+ * Вызывается при инициализации смены для загрузки ранее отсканированных кодов
+ *
+ * @param shiftId - ID смены
+ */
+export function syncCacheWithBackup(shiftId: string): void {
+  try {
+    // Получаем все коды из бэкапа
+    const backupData = getAllScannedCodesFromBackup(shiftId);
+
+    // Инициализируем кеш для смены, если его нет
+    if (!scanHistoryCache[shiftId]) {
+      scanHistoryCache[shiftId] = {};
+    }
+
+    // Добавляем коды из бэкапа в кеш (если их еще нет)
+    backupData.forEach(item => {
+      try {
+        const parsedData = parseDataMatrix(item.code);
+        if (parsedData) {
+          const key = createDataMatrixKey(parsedData);
+
+          // Добавляем только если этого кода еще нет в кеше
+          if (!(key in scanHistoryCache[shiftId])) {
+            scanHistoryCache[shiftId][key] = {
+              timestamp: item.timestamp,
+              data: parsedData,
+            };
+          }
+        }
+      } catch (error) {
+        rendererLogger.warn('Failed to sync backup code to cache', { code: item.code, error });
+      }
+    });
+
+    rendererLogger.info(
+      `Synced ${backupData.length} codes from backup to cache for shift ${shiftId}`
+    );
+  } catch (error) {
+    rendererLogger.error('Error syncing cache with backup', { error });
+  }
 }
 
 // Функции для визуальных и звуковых оповещений

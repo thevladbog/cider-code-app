@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import * as net_socket from 'net';
 
+import { logger } from './services';
 import { storeWrapper } from './store-wrapper';
 
 // Import USB module with fallback for environments where it's not available
@@ -9,7 +10,9 @@ let usb: any = null;
 try {
   usb = require('usb');
 } catch (error) {
-  console.warn('USB module not available:', error instanceof Error ? error.message : String(error));
+  logger.warn('USB module not available', {
+    error: error instanceof Error ? error.message : String(error),
+  });
 }
 
 const { SerialPort } = require('serialport');

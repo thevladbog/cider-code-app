@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { rendererLogger } from '../utils/rendererLogger';
 
 import {
   checkDataMatrixCode,
   clearScanHistory,
   getScannedCodes,
   removeCodesFromHistory,
+  syncCacheWithBackup,
 } from '../services/scanService';
 import {
   addItemToCurrentBox,
@@ -70,14 +72,24 @@ export function useScannerWithPacking({
 
   // Определяем, работаем ли мы в режиме упаковки
   const isPackingMode = shift?.packing === true;
-
-  // Получаем список отсканированных кодов
+  // Получаем список отсканированных кодов - стабильная функция
   const getScanned = useCallback(() => {
     if (!shift?.id) return [];
     return getScannedCodes(shift.id);
   }, [shift?.id]);
 
-  const [scannedCodes, setScannedCodes] = useState<DataMatrixData[]>(getScanned());
+  // Инициализируем состояние пустым массивом, чтобы избежать вызова getScanned при каждом рендере
+  const [scannedCodes, setScannedCodes] = useState<DataMatrixData[]>([]);
+  // Обновляем scannedCodes при изменении смены
+  useEffect(() => {
+    if (shift?.id) {
+      // Синхронизируем кеш с бэкапом перед получением кодов
+      syncCacheWithBackup(shift.id);
+      setScannedCodes(getScanned());
+    } else {
+      setScannedCodes([]);
+    }
+  }, [shift?.id, getScanned]);
   const initializationRef = useRef<{ shiftId: string | null; isInitializing: boolean }>({
     shiftId: null,
     isInitializing: false,
@@ -124,9 +136,9 @@ export function useScannerWithPacking({
       setCurrentBoxInfo(boxInfo);
 
       onSSCCInitialized?.(firstSSCC);
-      console.log('Shift initialized for packing. First box will use SSCC:', firstSSCC);
+      rendererLogger.info('Shift initialized for packing. First box will use SSCC', { firstSSCC });
     } catch (error) {
-      console.error('Error initializing shift for packing:', error);
+      rendererLogger.error('Error initializing shift for packing', { error });
       setScanMessage(`Ошибка инициализации упаковки: ${error}`);
       setScanError(true);
       // Сбрасываем флаги при ошибке
@@ -142,7 +154,7 @@ export function useScannerWithPacking({
     async (barcode: string) => {
       if (!shift || !enabled) return;
 
-      console.log('Scanned barcode:', barcode);
+      rendererLogger.info('Scanned barcode', { barcode });
 
       // Проверяем отсканированный код
       const checkResult = checkDataMatrixCode(barcode, shift);
@@ -164,7 +176,8 @@ export function useScannerWithPacking({
           onInvalidProduct?.(checkResult.data);
         } else if (checkResult.isValid) {
           // Обновляем список отсканированных кодов
-          setScannedCodes(getScanned());
+          const updatedCodes = getScanned();
+          setScannedCodes(updatedCodes);
           onScanSuccess?.(checkResult.data);
 
           // Если это режим упаковки, обрабатываем логику коробов
@@ -181,10 +194,9 @@ export function useScannerWithPacking({
                 currentSSCC: boxResult.currentSSCC,
                 boxItemCount: boxResult.currentBoxItemCount,
                 maxBoxCount: boxResult.maxBoxCount,
-              });
-
-              // Если короб заполнен, готовим его к упаковке (но не отправляем на бэкенд)
+              }); // Если короб заполнен, готовим его к упаковке (но не отправляем на бэкенд)
               if (boxResult.shouldPackBox) {
+                // Получаем актуальные отсканированные коды
                 const currentScannedCodes = getScanned();
                 // Используем исходные rawData кодов для упаковки
                 const lastBoxCodes = currentScannedCodes
@@ -215,10 +227,10 @@ export function useScannerWithPacking({
         onScanError?.(checkResult.message || 'Ошибка сканирования');
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       shift,
       enabled,
-      getScanned,
       onScanSuccess,
       onScanError,
       onDuplicateScan,
@@ -241,21 +253,35 @@ export function useScannerWithPacking({
     initializationRef.current.shiftId = null;
     initializationRef.current.isInitializing = false;
   }, [shift?.id]);
-
   // Автоматическая инициализация при открытии смены в режиме упаковки
+  // Используем ref для предотвращения множественных инициализаций
+  const autoInitRef = useRef<{ shiftId: string | null; initiated: boolean }>({
+    shiftId: null,
+    initiated: false,
+  });
+
   useEffect(() => {
     if (
       isPackingMode &&
       shift &&
       enabled &&
-      initializationRef.current.shiftId !== shift.id &&
-      !initializationRef.current.isInitializing
+      shift.id !== autoInitRef.current.shiftId &&
+      !autoInitRef.current.initiated
     ) {
-      initializeShiftForPacking();
+      autoInitRef.current.shiftId = shift.id;
+      autoInitRef.current.initiated = true;
+
+      initializeShiftForPacking().finally(() => {
+        autoInitRef.current.initiated = false;
+      });
+    }
+
+    // Сбрасываем при смене shift
+    if (shift?.id !== autoInitRef.current.shiftId) {
+      autoInitRef.current.initiated = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPackingMode, shift, enabled]);
-
+  }, [isPackingMode, shift?.id, enabled]);
   // Сбрасываем состояние сканирования
   const resetScan = useCallback(() => {
     setLastScannedCode(null);
@@ -266,17 +292,18 @@ export function useScannerWithPacking({
     if (shift?.id) {
       const currentBoxItemCount = currentBoxInfo?.boxItemCount || 0;
 
-      // Получаем коды текущего короба (последние N кодов)
-      const currentBoxCodes = scannedCodes.slice(-currentBoxItemCount);
-
-      // Удаляем коды текущего короба из истории сканирования
-      if (currentBoxCodes.length > 0) {
-        removeCodesFromHistory(shift.id, currentBoxCodes);
-      }
-
-      // Удаляем коды текущего короба из списка сканированных кодов в UI
+      // Получаем коды текущего короба (последние N кодов) из актуального состояния
       if (currentBoxItemCount > 0) {
-        setScannedCodes(prev => prev.slice(0, -currentBoxItemCount));
+        const currentScannedCodes = getScanned(); // Получаем актуальные данные
+        const currentBoxCodes = currentScannedCodes.slice(-currentBoxItemCount);
+
+        // Удаляем коды текущего короба из истории сканирования
+        if (currentBoxCodes.length > 0) {
+          removeCodesFromHistory(shift.id, currentBoxCodes);
+        }
+
+        // Обновляем состояние с актуальными данными
+        setScannedCodes(getScanned());
       }
 
       resetCurrentBox(shift.id);
@@ -288,7 +315,7 @@ export function useScannerWithPacking({
         `🔄 Reset current box: removed ${currentBoxItemCount} items from scan history and UI`
       );
     }
-  }, [shift?.id, currentBoxInfo?.boxItemCount, scannedCodes]);
+  }, [shift?.id, currentBoxInfo?.boxItemCount, getScanned]);
 
   // Очищаем историю сканирования для текущей смены
   const clearHistory = useCallback(() => {
