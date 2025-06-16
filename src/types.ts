@@ -93,6 +93,15 @@ export interface ElectronAPI {
   toggleFullscreen: () => Promise<boolean>;
   quitApp: () => Promise<void>;
   playSound: (soundName: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Логирование в облако
+  sendLog: (logData: {
+    level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+    message: string;
+    payload?: Record<string, unknown>;
+    timestamp: string;
+    source: string;
+  }) => Promise<{ success: boolean; error?: string }>;
 }
 
 // Информация о COM-порте

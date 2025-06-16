@@ -61,3 +61,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Node.js global variables
+declare const __dirname: string;
+declare const __filename: string;

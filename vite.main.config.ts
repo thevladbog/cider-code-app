@@ -49,6 +49,10 @@ const isExternal = (id: string) => {
 
 // https://vitejs.dev/config
 export default defineConfig({
+  define: {
+    __dirname: '__dirname',
+    __filename: '__filename',
+  },
   build: {
     target: 'node22',
     ssr: true, // Включаем SSR режим для лучшей совместимости с Node.js

@@ -1,3 +1,7 @@
+// Загружаем переменные окружения из .env файла
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -37,11 +41,51 @@ import {
   listSerialPorts,
   setupSerialPort,
 } from './serialPortConfig';
+import { logger } from './services';
+import { createSDKLoggerConfig } from './services/loggerConfig';
 import { storeWrapper } from './store-wrapper';
+import { getAppEnvironment } from './utils/environment';
 
 let mainWindow: BrowserWindow | null = null;
 
+// Инициализация логгера
+async function initializeLogger() {
+  try {
+    const config = createSDKLoggerConfig();
+    await logger.initialize(config);
+
+    // Устанавливаем logger в модуле environment
+    import('./utils/environment').then(({ setLogger }) => {
+      setLogger(logger);
+    });
+
+    logger.info('Приложение запущено', {
+      environment: getAppEnvironment(),
+      platform: process.platform,
+      arch: process.arch,
+      electronVersion: process.versions.electron,
+      nodeVersion: process.versions.node,
+    });
+  } catch (error) {
+    // В случае ошибки инициализации логгера используем стандартный console
+    // Здесь мы не можем использовать logger, так как он не инициализирован
+    console.error('Ошибка инициализации логгера:', error);
+  }
+}
+
 function createWindow() {
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // Определяем пути в зависимости от режима
+  const appPath = app.getAppPath();
+  const preloadPath = isDev
+    ? path.join(appPath, 'dist', 'preload.js')
+    : path.join(appPath, 'dist', 'preload.js');
+
+  const rendererPath = isDev
+    ? 'http://localhost:3000'
+    : `file://${path.join(appPath, 'dist', 'renderer', 'index.html')}`;
+
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
@@ -50,17 +94,14 @@ function createWindow() {
     //kiosk: true,       // Режим киоска (скрывает панель пуск)
     //autoHideMenuBar: true, // Скрываем меню
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: false,
     },
-  }); // Используем NODE_ENV для выбора URL
-  const isDev = process.env.NODE_ENV === 'development';
-  const mainWindowUrl = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, './renderer/index.html')}`;
-  mainWindow.loadURL(mainWindowUrl);
+  });
+
+  mainWindow.loadURL(rendererPath);
 
   // В режиме разработки можно оставить DevTools
   if (process.env.NODE_ENV === 'development') {
@@ -85,7 +126,10 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Инициализируем логгер перед всеми остальными операциями
+  await initializeLogger();
+
   setupSerialPort();
 
   // Настройка CSP для разрешения запросов к API и изображений
@@ -95,7 +139,7 @@ app.whenReady().then(() => {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-            "connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://api.test.in.bottlecode.app:3035; " +
+            "connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:* https://api.test.in.bottlecode.app:3035 https://api.bottlecode.app https://*.bottlecode.app; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' data: https://fonts.gstatic.com; " +
@@ -228,50 +272,50 @@ ipcMain.handle('quit-app', () => {
 
 // Обработчики управления окном
 ipcMain.handle('toggle-kiosk-mode', () => {
-  console.log('Toggle kiosk mode called');
+  logger.info('Toggle kiosk mode called');
   if (mainWindow) {
     const isKiosk = mainWindow.isKiosk();
-    console.log('Current kiosk state:', isKiosk);
+    logger.info('Current kiosk state', { isKiosk });
     mainWindow.setKiosk(!isKiosk);
-    console.log('New kiosk state:', !isKiosk);
+    logger.info('New kiosk state', { isKiosk: !isKiosk });
     return !isKiosk;
   }
-  console.log('No main window available');
+  logger.warn('No main window available');
   return false;
 });
 
 ipcMain.handle('minimize-window', () => {
-  console.log('Minimize window called');
+  logger.info('Minimize window called');
   if (mainWindow) {
     mainWindow.minimize();
-    console.log('Window minimized');
+    logger.info('Window minimized');
   } else {
-    console.log('No main window available');
+    logger.warn('No main window available');
   }
 });
 
 ipcMain.handle('maximize-window', () => {
-  console.log('Maximize window called');
+  logger.info('Maximize window called');
   if (mainWindow) {
     if (mainWindow.isMaximized()) {
-      console.log('Window is maximized, unmaximizing');
+      logger.info('Window is maximized, unmaximizing');
       mainWindow.unmaximize();
     } else {
-      console.log('Window is not maximized, maximizing');
+      logger.info('Window is not maximized, maximizing');
       mainWindow.maximize();
     }
   } else {
-    console.log('No main window available');
+    logger.warn('No main window available');
   }
 });
 
 ipcMain.handle('close-window', () => {
-  console.log('Close window called');
+  logger.info('Close window called');
   if (mainWindow) {
     mainWindow.close();
-    console.log('Window closed');
+    logger.info('Window closed');
   } else {
-    console.log('No main window available');
+    logger.warn('No main window available');
   }
 });
 
@@ -284,7 +328,7 @@ ipcMain.handle('play-sound', async (_, soundName: string) => {
 
     // Проверяем существование файла
     if (!fs.existsSync(soundFile)) {
-      console.error(`Sound file not found: ${soundFile}`);
+      logger.error(`Sound file not found`, { soundFile });
       return { success: false, error: 'Sound file not found' };
     }
 
@@ -307,16 +351,14 @@ ipcMain.handle('play-sound', async (_, soundName: string) => {
     }
 
     // Запускаем процесс воспроизведения
-    const childProcess = spawn(command, args);
-
-    // Не ждем завершения, чтобы не блокировать UI
+    const childProcess = spawn(command, args); // Не ждем завершения, чтобы не блокировать UI
     childProcess.on('error', err => {
-      console.error('Error playing sound:', err);
+      logger.error('Error playing sound', { error: err.message });
     });
 
     return { success: true };
   } catch (error) {
-    console.error('Error playing sound:', error);
+    logger.error('Error playing sound', { error: (error as Error).message });
     return { success: false, error: (error as Error).message };
   }
 });
@@ -333,13 +375,60 @@ ipcMain.handle('save-backup', async (_, data: unknown, filename: string) => {
 
     const filePath = path.join(savePath, filename);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-
+    logger.info('Backup saved successfully', { path: filePath });
     return { success: true, path: filePath };
   } catch (error) {
-    console.error('Error saving backup:', error);
+    logger.error('Error saving backup', { error: (error as Error).message });
     return { success: false, error: (error as Error).message };
   }
 });
+
+// Добавляем обработчик для отправки логов в облако
+ipcMain.handle(
+  'send-log',
+  async (
+    _,
+    logData: {
+      level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+      message: string;
+      payload?: Record<string, unknown>;
+      timestamp: string;
+      source: string;
+    }
+  ) => {
+    try {
+      // Используем существующий logger для отправки в облако
+      const logPayload = {
+        message: logData.message,
+        level: logData.level,
+        timestamp: logData.timestamp,
+        source: logData.source,
+        ...logData.payload,
+      };
+
+      // Отправляем лог через существующий логгер
+      switch (logData.level) {
+        case 'DEBUG':
+          logger.debug(logData.message, logPayload);
+          break;
+        case 'INFO':
+          logger.info(logData.message, logPayload);
+          break;
+        case 'WARN':
+          logger.warn(logData.message, logPayload);
+          break;
+        case 'ERROR':
+          logger.error(logData.message, logPayload);
+          break;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error sending log to cloud:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+);
 
 ipcMain.handle(
   'save-code-to-backup',
@@ -507,3 +596,6 @@ if (process.env.NODE_ENV === 'development') {
     }
   });
 }
+
+// Инициализация логгера
+initializeLogger();

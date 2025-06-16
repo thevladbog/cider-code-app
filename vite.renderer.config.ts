@@ -13,8 +13,33 @@ export default defineConfig(({ mode }) => ({
     emptyOutDir: true,
     rollupOptions: {
       input: resolve(__dirname, 'src/index.html'),
+      // Исключаем electron и Node.js модули из renderer bundle'а
+      external: [
+        'electron',
+        'fs',
+        'path',
+        'os',
+        'child_process',
+        'crypto',
+        'stream',
+        'util',
+        'buffer',
+        'events',
+        'http',
+        'https',
+        'url',
+        'net',
+        'tls',
+        'zlib',
+        'querystring',
+        'punycode',
+        'readline',
+        'repl',
+        'tty',
+        'dgram',
+        'dns',
+      ],
       // Добавляем принудительное использование правильного бинарного файла Rollup
-      external: process.platform === 'darwin' ? [] : undefined,
     },
     sourcemap: true,
     // Для macOS: устанавливаем явную конфигурацию для избежания проблем с нативными модулями
@@ -47,5 +72,14 @@ export default defineConfig(({ mode }) => ({
   define: {
     // Делаем NODE_ENV доступным в renderer процессе через import.meta.env
     'import.meta.env.NODE_ENV': JSON.stringify(mode),
+    // Определяем Node.js переменные как undefined в renderer процессе
+    global: 'globalThis',
+    __dirname: 'undefined',
+    __filename: 'undefined',
+    process: 'undefined',
+    Buffer: 'undefined',
+  },
+  optimizeDeps: {
+    exclude: ['electron', 'fs', 'path', 'os', 'child_process'],
   },
 }));

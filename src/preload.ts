@@ -92,4 +92,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Тестовые методы (только в разработке)
   testSavePackage: (shiftId: string) => ipcRenderer.invoke('test-save-package', shiftId),
+
+  // Логирование в облако
+  sendLog: (logData: {
+    level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+    message: string;
+    payload?: Record<string, unknown>;
+    timestamp: string;
+    source: string;
+  }) => ipcRenderer.invoke('send-log', logData),
 } as ElectronAPI); // Приводим к типу ElectronAPI

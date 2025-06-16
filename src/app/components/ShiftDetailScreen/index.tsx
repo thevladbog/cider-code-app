@@ -36,6 +36,7 @@ import { useScannerWithoutPacking } from '@/app/hooks/useScannerWithoutPacking';
 import { DataMatrixData, ShiftStatus } from '@/app/types';
 import { formatGtin, formatNumber, formatSSCC } from '@/app/utils';
 import { compareSSCCCodes } from '@/app/utils/datamatrix';
+import { rendererLogger } from '@/app/utils/rendererLogger';
 
 import { AppHeader } from '../AppHeader';
 import BackupManager from '../BackupManager';
@@ -74,7 +75,9 @@ export const ShiftDetailScreen: React.FC = () => {
       utterance.rate = 1.2;
       window.speechSynthesis.speak(utterance);
     }
-  }, []); // Настройка хука для работы с упаковкой
+  }, []);
+
+  // Настройка хука для работы с упаковкой
   const packingHookResult = useScannerWithPacking({
     shift: shift?.result || null,
     enabled:
@@ -119,7 +122,7 @@ export const ShiftDetailScreen: React.FC = () => {
           errorType: 'duplicate_scan',
         });
       } catch (error) {
-        console.error('Failed to log duplicate error:', error);
+        rendererLogger.error('Failed to log duplicate error', { error, shiftId });
       }
     },
     onBoxReadyToPack: (currentSSCC: string, itemCodes: string[]) => {
@@ -128,10 +131,10 @@ export const ShiftDetailScreen: React.FC = () => {
     },
     onBoxPacked: (packedSSCC: string, nextSSCC: string) => {
       // Короб окончательно упакован - только обновляем статистику
-      console.log(`Box packed: ${packedSSCC}, next: ${nextSSCC}`);
+      rendererLogger.info(`Box packed: ${packedSSCC}, next: ${nextSSCC}`);
     },
     onSSCCInitialized: (sscc: string) => {
-      console.log('SSCC initialized for first box:', sscc);
+      rendererLogger.info('SSCC initialized for first box', { sscc });
     },
   });
 
@@ -180,15 +183,12 @@ export const ShiftDetailScreen: React.FC = () => {
           errorType: 'duplicate_scan',
         });
       } catch (error) {
-        console.error('Failed to log duplicate error:', error);
+        rendererLogger.error('Failed to log duplicate error without packaging', { error, shiftId });
       }
     },
     onBatchSent: async (codes: string[], count: number) => {
       // Коды успешно отправлены на сервер
-      console.log(`Batch of ${count} codes sent to server:`, codes);
-      if (speakMessageRef.current) {
-        speakMessageRef.current(`Отправлено ${count} кодов`);
-      }
+      rendererLogger.info(`Batch of ${count} codes sent to server`, { codes, count });
 
       // Логируем отправку в бэкап
       try {
@@ -199,7 +199,7 @@ export const ShiftDetailScreen: React.FC = () => {
           shiftId: shift?.result?.id,
         });
       } catch (error) {
-        console.error('Failed to log codes sent:', error);
+        rendererLogger.error('Failed to log codes sent', { error });
       }
     },
     batchSize: 1, // Отправляем коды по одному
@@ -220,12 +220,9 @@ export const ShiftDetailScreen: React.FC = () => {
   const confirmBoxPacking =
     useCrates && 'confirmBoxPacking' in scannerHookResult
       ? scannerHookResult.confirmBoxPacking
-      : null;
-  // Обновляем refs при изменении функций
-  useEffect(() => {
-    initializeShiftRef.current = initializeShiftForPacking;
-    speakMessageRef.current = speakMessage;
-  }, [initializeShiftForPacking, speakMessage]);
+      : null; // Обновляем refs напрямую при каждом рендере, но это не вызывает перерендер
+  initializeShiftRef.current = initializeShiftForPacking;
+  speakMessageRef.current = speakMessage;
   const [scanStats, setScanStats] = useState({
     totalScanned: 0,
     currentBoxScanned: 0,
@@ -233,54 +230,76 @@ export const ShiftDetailScreen: React.FC = () => {
     boxCapacity: 0,
     totalShiftScanned: 0, // Общее количество отсканированных в смене
     initialFactCount: 0, // Начальное значение factCount при открытии смены
-  }); // Получаем сохраненные коды по текущей смене при загрузке
+  }); // Получаем сохраненные коды по текущей смене при загрузке  // Используем ref для отслеживания предыдущего состояния и предотвращения бесконечных ререндеров
+  const prevShiftIdRef = useRef<string | null>(null);
+  const isFirstRenderRef = useRef(true);
+
   useEffect(() => {
     const shiftResult = shift?.result;
-    if (!shiftResult) return; // Инициализация данных из смены
-    const boxCapacity = shiftResult.countInBox || 0;
-    const shouldUseCrates = shiftResult.packing;
-    setUseCrates(shouldUseCrates);
-    // Инициализация даты производства
-    console.log('Original plannedDate from API:', shiftResult.plannedDate);
+    if (!shiftResult) return;
 
-    let parsedDate: DateTime | null = null;
-    if (shiftResult.plannedDate) {
-      try {
-        // Пробуем разные способы парсинга даты
-        const result = dateTimeParse(shiftResult.plannedDate);
-        parsedDate = result || null;
-        console.log('Parsed date:', parsedDate?.format('DD.MM.YYYY'));
-      } catch (error) {
-        console.error('Error parsing date:', error);
-        // Если не удалось распарсить, создаём новую дату из ISO строки
+    // Предотвращаем повторные обновления состояния при перерендерах
+    const isNewShift = isFirstRenderRef.current || prevShiftIdRef.current !== shiftResult.id;
+
+    // Обновляем ref для отслеживания предыдущего значения
+    prevShiftIdRef.current = shiftResult.id;
+    isFirstRenderRef.current = false;
+
+    // Только если это новая смена или первый рендер
+    if (isNewShift) {
+      // Инициализация данных из смены
+      const boxCapacity = shiftResult.countInBox || 0;
+      const shouldUseCrates = shiftResult.packing;
+
+      // Устанавливаем состояние только если оно изменилось
+      setUseCrates(shouldUseCrates);
+
+      // Инициализация даты производства
+      console.log('Original plannedDate from API:', shiftResult.plannedDate);
+
+      let parsedDate: DateTime | null = null;
+      if (shiftResult.plannedDate) {
         try {
-          const jsDate = new Date(shiftResult.plannedDate);
-          const fallbackResult = dateTimeParse(jsDate.toISOString());
-          parsedDate = fallbackResult || null;
-        } catch (fallbackError) {
-          console.error('Fallback parsing failed:', fallbackError);
+          // Пробуем разные способы парсинга даты
+          const result = dateTimeParse(shiftResult.plannedDate);
+          parsedDate = result || null;
+          rendererLogger.debug('Parsed date', { date: parsedDate?.format('DD.MM.YYYY') });
+        } catch (error) {
+          rendererLogger.error('Error parsing date', { error });
+          // Если не удалось распарсить, создаём новую дату из ISO строки
+          try {
+            const jsDate = new Date(shiftResult.plannedDate);
+            const fallbackResult = dateTimeParse(jsDate.toISOString());
+            parsedDate = fallbackResult || null;
+          } catch (fallbackError) {
+            rendererLogger.error('Fallback parsing failed', { fallbackError });
+          }
         }
       }
-    }
-    setProductionDate(parsedDate); // Если используется упаковка, инициализируем SSCC для смены
-    if (shouldUseCrates && shiftResult.status === 'INPROGRESS' && initializeShiftForPacking) {
-      initializeShiftForPacking().catch((error: unknown) => {
-        console.error('Failed to initialize SSCC for shift:', error);
-        if (speakMessageRef.current) {
-          speakMessageRef.current('Ошибка инициализации упаковки');
-        }
+
+      setProductionDate(parsedDate);
+
+      // Установка начальных значений
+      const initialFactCount = shiftResult.factCount || 0;
+      setScanStats({
+        totalScanned: 0,
+        currentBoxScanned: 0,
+        totalBoxes: 0,
+        boxCapacity,
+        totalShiftScanned: 0,
+        initialFactCount,
       });
-    } // Установка начальных значений
-    const initialFactCount = shiftResult.factCount || 0;
-    setScanStats({
-      totalScanned: 0,
-      currentBoxScanned: 0,
-      totalBoxes: 0,
-      boxCapacity,
-      totalShiftScanned: 0,
-      initialFactCount,
-    });
-  }, [shift?.result, initializeShiftForPacking]);
+    }
+
+    // Это делаем независимо от того, новая ли это смена
+    // Если используется упаковка, инициализируем SSCC для смены
+    if (shiftResult.packing && shiftResult.status === 'INPROGRESS' && initializeShiftRef.current) {
+      // Используем ref для вызова, чтобы исключить его из зависимостей
+      initializeShiftRef.current().catch((error: unknown) => {
+        console.error('Failed to initialize SSCC for shift:', error);
+      });
+    }
+  }, [shift?.result, shift?.result.id]); // Используем только id смены для зависимости
   // Обработчик успешной верификации SSCC
   const handleSSCCVerificationSuccess = useCallback(async () => {
     try {
@@ -330,15 +349,8 @@ export const ShiftDetailScreen: React.FC = () => {
         currentBoxScanned: 0,
       }));
       resetScan(); // Очищаем данные текущего скана через хук
-
-      if (speakMessageRef.current) {
-        speakMessageRef.current('Короб успешно упакован');
-      }
     } catch (error) {
       console.error('Error confirming box packing:', error);
-      if (speakMessageRef.current) {
-        speakMessageRef.current('Ошибка упаковки короба');
-      }
 
       // При ошибке очищаем данные и закрываем модал
       setPendingSSCC(null);
@@ -684,10 +696,6 @@ export const ShiftDetailScreen: React.FC = () => {
         } catch (logError) {
           console.error('Failed to log packing mode change:', logError);
         }
-
-        if (speakMessageRef.current) {
-          speakMessageRef.current(value ? 'Упаковка включена' : 'Упаковка отключена');
-        }
       } catch (error) {
         console.error('Failed to update packing setting:', error);
 
@@ -703,10 +711,6 @@ export const ShiftDetailScreen: React.FC = () => {
           });
         } catch (logErr) {
           console.error('Failed to log packing setting error:', logErr);
-        }
-
-        if (speakMessageRef.current) {
-          speakMessageRef.current('Ошибка изменения настройки упаковки');
         }
       }
     },
@@ -771,9 +775,6 @@ export const ShiftDetailScreen: React.FC = () => {
         });
       } catch (error) {
         console.error('Failed to update production date:', error);
-        if (speakMessageRef.current) {
-          speakMessageRef.current('Ошибка обновления даты производства');
-        } // Возвращаем предыдущее значение при ошибке
         let originalDate: DateTime | null = null;
         if (shift.result.plannedDate) {
           try {
@@ -788,10 +789,9 @@ export const ShiftDetailScreen: React.FC = () => {
     },
     [shiftId, shift, queryClient]
   );
-
   // Функция для установки operatorId при открытии смены
   const assignOperatorToShift = useCallback(async () => {
-    if (!shiftId || !userProfile?.result || !shift) return;
+    if (!shiftId || !userProfile?.result || !shift?.result) return;
 
     // Проверяем, не установлен ли уже operatorId
     if (shift.result.operatorId === userProfile.result.id) {
@@ -815,15 +815,36 @@ export const ShiftDetailScreen: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to assign operatorId to shift:', error);
-      if (speakMessageRef.current) {
-        speakMessageRef.current('Ошибка привязки оператора к смене');
-      }
     }
-  }, [shiftId, userProfile, shift, queryClient]);
+  }, [queryClient, shift?.result, shiftId, userProfile?.result]); // useEffect для установки operatorId при загрузке данных
 
-  // useEffect для установки operatorId при загрузке данных
+  const prevAssignmentRef = useRef<{
+    userId?: string;
+    shiftId?: string;
+    operatorId?: string | null;
+  } | null>(null);
+
   useEffect(() => {
-    if (userProfile?.result && shift?.result) {
+    if (!userProfile?.result || !shift?.result) return;
+
+    const currentUserId = userProfile.result.id;
+    const currentShiftId = shift.result.id;
+    const currentOperatorId = shift.result.operatorId;
+
+    // Проверяем, изменились ли ключевые параметры
+    const hasChanged =
+      !prevAssignmentRef.current ||
+      prevAssignmentRef.current.userId !== currentUserId ||
+      prevAssignmentRef.current.shiftId !== currentShiftId ||
+      prevAssignmentRef.current.operatorId !== currentOperatorId;
+
+    if (hasChanged) {
+      prevAssignmentRef.current = {
+        userId: currentUserId,
+        shiftId: currentShiftId,
+        operatorId: currentOperatorId,
+      };
+
       assignOperatorToShift();
     }
   }, [userProfile?.result, shift?.result, assignOperatorToShift]);
@@ -848,15 +869,8 @@ export const ShiftDetailScreen: React.FC = () => {
         await queryClient.invalidateQueries({
           queryKey: ['shift', shiftId],
         });
-
-        if (speakMessageRef.current) {
-          speakMessageRef.current('Количество в коробе изменено');
-        }
       } catch (error) {
         console.error('Failed to update box capacity:', error);
-        if (speakMessageRef.current) {
-          speakMessageRef.current('Ошибка изменения количества в коробе');
-        }
       }
     },
     [shiftId, shift, queryClient]
@@ -1282,10 +1296,10 @@ export const ShiftDetailScreen: React.FC = () => {
               {scanMessage}
             </Text>
           )}
-        </div>
-        {/* Модальные окна */}{' '}
+        </div>{' '}
+        {/* Модальные окна */}
         {activeModal === 'verification' && pendingSSCC && (
-          <div className={styles.modal}>
+          <div className={`${styles.modal} ${styles.verificationModal}`}>
             <div className={styles.modalContent}>
               <div className={styles.modalTitle}>
                 <Text variant="display-2">Проверка этикетки</Text>
@@ -1294,12 +1308,12 @@ export const ShiftDetailScreen: React.FC = () => {
                 <Text variant="body-1" color="secondary">
                   Отсканируйте SSCC код с напечатанной этикетки для подтверждения
                 </Text>
-              </div>
-              <div className={styles.modalCode}>
-                <Text variant="display-3">{formatSSCC(pendingSSCC)}</Text>
               </div>{' '}
+              <div className={`${styles.modalCode} ${styles.pending}`}>
+                <Text variant="display-3">{formatSSCC(pendingSSCC)}</Text>
+              </div>
               <Button
-                view="flat"
+                view="outlined"
                 size="xl"
                 onClick={() => {
                   // При отмене сбрасываем все состояния
@@ -1314,7 +1328,7 @@ export const ShiftDetailScreen: React.FC = () => {
               </Button>
             </div>
           </div>
-        )}{' '}
+        )}
         {/* Модальное окно подтверждения удаления короба */}
         <Modal open={activeModal === 'confirmDeleteBox'} onClose={() => setActiveModal(null)}>
           <div className={styles.modalContent}>

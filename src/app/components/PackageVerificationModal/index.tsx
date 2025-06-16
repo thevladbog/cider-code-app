@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { verifySSCCCode } from '@/app/services/packagingService';
 import { IShiftScheme } from '@/app/types';
-import { formatSSCC } from '@/app/utils';
+import { formatSSCC, isDev } from '@/app/utils';
 import styles from './PackageVerificationModal.module.scss';
 
 interface PackageVerificationModalProps {
@@ -25,7 +25,7 @@ export const PackageVerificationModal: React.FC<PackageVerificationModalProps> =
   shift,
   isLoading = false,
 }) => {
-  console.log('PackageVerificationModal: DEV =', import.meta.env.DEV);
+  console.log('PackageVerificationModal: DEV =', isDev());
   console.log('PackageVerificationModal: visible =', visible);
 
   const [scannedCode, setScannedCode] = useState<string | null>(null);
