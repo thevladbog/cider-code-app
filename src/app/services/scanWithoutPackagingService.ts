@@ -1,6 +1,6 @@
 import { UpdateCodesStatusDto } from '../api/generated';
 import { updateCodesStatus } from '../api/queries';
-import { rendererLogger } from '../utils/rendererLogger';
+import { rendererLogger } from '../utils/simpleRendererLogger';
 
 /**
  * Сервис для работы с кодами без упаковки

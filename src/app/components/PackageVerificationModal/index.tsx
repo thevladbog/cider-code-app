@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { verifySSCCCode } from '@/app/services/packagingService';
 import { IShiftScheme } from '@/app/types';
 import { formatSSCC, isDev } from '@/app/utils';
-import { rendererLogger } from '@/app/utils/rendererLogger';
+import { rendererLogger } from '@/app/utils/simpleRendererLogger';
 import styles from './PackageVerificationModal.module.scss';
 
 interface PackageVerificationModalProps {

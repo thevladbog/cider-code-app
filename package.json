@@ -29,8 +29,9 @@
     "generate-api-client": "curl -k -o ./src/app/api/openapi.yaml https://api.test.in.bottlecode.app:3035/api/yaml && openapi --input ./src/app/api/openapi.yaml --output ./src/app/api/generated --client axios --useOptions --useUnionTypes",
     "build:renderer": "vite build --config vite.renderer.config.ts",
     "build:main": "tsc",
-    "dist": "npm run build:main && npm run build:renderer && electron-builder --config electron-builder.yml",
-    "dist:rebuild": "npm run clean && npm run build:main && npm run build:renderer && npm rebuild && electron-builder --config electron-builder.yml",
+    "build:preload": "vite build --config vite.preload.config.ts",
+    "dist": "npm run build:main && npm run build:preload && npm run build:renderer && npm run postbuild:preload && electron-builder --config electron-builder.yml",
+    "dist:rebuild": "npm run clean && npm run build:main && npm run build:preload && npm run build:renderer && npm run postbuild:preload && npm rebuild && electron-builder --config electron-builder.yml",
     "test:logger": "npx ts-node src/services/loggerTest.ts",
     "test:logger:comprehensive": "npx ts-node src/services/loggerTestComprehensive.ts",
     "test:logger:environment": "npx ts-node src/services/loggerTestEnvironment.ts",
@@ -43,7 +44,8 @@
     "setup:yandex-logging": "node scripts/setup-yandex-logging.js",
     "fix:yandex-auth": "node scripts/fix-yandex-auth.js",
     "diagnose:yandex-auth": "npm run fix:yandex-auth",
-    "diagnose:logging": "npm run setup:yandex-logging && npm run test:environment:unified"
+    "diagnose:logging": "npm run setup:yandex-logging && npm run test:environment:unified",
+    "postbuild:preload": "node scripts/copy-preload.js"
   },
   "keywords": [],
   "author": {
@@ -101,6 +103,7 @@
     "@yandex-cloud/nodejs-sdk": "^2.8.0",
     "axios": "^1.9.0",
     "classnames": "^2.5.1",
+    "dotenv": "^16.5.0",
     "electron-squirrel-startup": "^1.0.1",
     "jsbarcode": "^3.11.6",
     "jsonwebtoken": "^9.0.2",

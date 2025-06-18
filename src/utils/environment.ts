@@ -2,20 +2,19 @@
  * Утилиты для работы с окружением приложения
  * Унифицированный подход к определению environment через VITE_APP_ENV
  */
-// Используем динамический импорт для логгера, чтобы избежать циклических зависимостей
-import type { LoggerService } from '../services/loggerService';
 
-// Изначально используем console, но позже переключаемся на logger
+// Используем console для логирования (облачное логирование отключено)
 let loggerInstance: {
-  error: (message: string, ...args: any[]) => void;
-  warn: (message: string, ...args: any[]) => void;
-  info: (message: string, ...args: any[]) => void;
-  debug: (message: string, ...args: any[]) => void;
+  error: (message: string, ...args: unknown[]) => void;
+  warn: (message: string, ...args: unknown[]) => void;
+  info: (message: string, ...args: unknown[]) => void;
+  debug: (message: string, ...args: unknown[]) => void;
 } = console;
 
-// Функция для установки логгера после его инициализации
-export function setLogger(logger: LoggerService): void {
-  loggerInstance = logger;
+// Функция для установки логгера после его инициализации (заглушка)
+export function setLogger(_logger: unknown): void {
+  // Облачное логирование отключено, используем console
+  loggerInstance = console;
 }
 
 export type AppEnvironment = 'development' | 'testing' | 'staging' | 'beta' | 'production';
@@ -130,7 +129,7 @@ export function getEnvironmentConfig() {
 
     // Логирование
     enableDetailedLogging: env === 'development' || env === 'testing',
-    enableCloudLogging: env === 'production' || env === 'staging' || env === 'beta',
+    enableCloudLogging: false, // Облачное логирование отключено
 
     // Отладка
     enableDebugMode: env === 'development',
@@ -161,12 +160,11 @@ function getApiUrl(env: AppEnvironment): string {
  */
 export function logEnvironmentInfo(): void {
   const config = getEnvironmentConfig();
-
-  loggerInstance.info('🌍 Environment Configuration', {
+  loggerInstance.info('Environment Configuration:', {
     environment: config.environment,
     apiUrl: config.apiUrl,
-    enableCloudLogging: config.enableCloudLogging,
     enableDetailedLogging: config.enableDetailedLogging,
+    enableCloudLogging: config.enableCloudLogging,
     enableDebugMode: config.enableDebugMode,
   });
 }
