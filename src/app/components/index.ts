@@ -1,4 +1,5 @@
 // Аутентификация и настройка
+export { AppRoutes } from './AppRoutes';
 export { ScanScreen } from './ScanScreen';
 
 // Устройства
