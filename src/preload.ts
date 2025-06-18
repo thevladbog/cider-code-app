@@ -2,7 +2,6 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import { contextBridge, ipcRenderer } from 'electron';
 
-import { LogMessage, LogResult, validateLogData } from './services/loggerTypes';
 import { ElectronAPI } from './types'; // Импортируем типы
 
 // Экспортируем API, которое будет доступно в React приложении
@@ -94,27 +93,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Тестовые методы (только в разработке)
   testSavePackage: (shiftId: string) => ipcRenderer.invoke('test-save-package', shiftId),
 
-  // Логирование в облако
-  sendLog: async (logData: LogMessage): Promise<LogResult> => {
-    try {
-      // Validate log data before sending
-      const validation = validateLogData(logData);
-
-      if (!validation.isValid) {
-        return {
-          success: false,
-          error: `Log validation failed: ${validation.error}`,
-        };
-      }
-
-      // Send validated and sanitized log data
-      const result = await ipcRenderer.invoke('send-log', validation.sanitizedData);
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to send log: ${(error as Error).message}`,
-      };
-    }
-  },
+  // Облачное логирование отключено
 } as ElectronAPI); // Приводим к типу ElectronAPI

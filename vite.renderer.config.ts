@@ -18,7 +18,13 @@ export default defineConfig(({ mode }) => ({
           id.includes('testEnvironment') ||
           id.includes('testApiConfig') ||
           id.includes('loggerTest') ||
-          id.includes('yandexCloudLoggerSDK')
+          id.includes('test-logger') ||
+          id.includes('yandexCloudLoggerSDK') ||
+          id.includes('loggerConfig') ||
+          id.includes('loggerService') ||
+          id.includes('iamTokenManager') ||
+          id.includes('authFixer') ||
+          id.includes('rendererLogger')
         ) {
           return false;
         }
@@ -56,17 +62,20 @@ export default defineConfig(({ mode }) => ({
         'tty',
         'dgram',
         'dns',
-        // Yandex Cloud SDK and gRPC dependencies - should not be bundled in renderer
-        '@yandex-cloud/nodejs-sdk',
+        // Yandex Cloud SDK and gRPC dependencies - should not be bundled in renderer        '@yandex-cloud/nodejs-sdk',
         '@grpc/grpc-js',
         '@grpc/proto-loader',
         'grpc',
-        'dotenv',
-        // Test files that use Node.js-only dependencies
-        /.*testEnvironment.*/,
+        'dotenv', // Test files that use Node.js-only dependencies        /.*testEnvironment.*/,
         /.*testApiConfig.*/,
         /.*loggerTest.*/,
+        /.*test-logger.*/,
         /.*yandexCloudLoggerSDK.*/,
+        /.*loggerConfig.*/,
+        /.*loggerService.*/,
+        /.*iamTokenManager.*/,
+        /.*authFixer.*/,
+        /.*rendererLogger.*/,
       ],
       // Добавляем принудительное использование правильного бинарного файла Rollup
     },

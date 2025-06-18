@@ -36,7 +36,7 @@ import { useScannerWithoutPacking } from '@/app/hooks/useScannerWithoutPacking';
 import { DataMatrixData, ShiftStatus } from '@/app/types';
 import { formatGtin, formatNumber, formatSSCC } from '@/app/utils';
 import { compareSSCCCodes } from '@/app/utils/datamatrix';
-import { rendererLogger } from '@/app/utils/rendererLogger';
+import { rendererLogger } from '@/app/utils/simpleRendererLogger';
 
 import { AppHeader } from '../AppHeader';
 import BackupManager from '../BackupManager';
