@@ -1,4 +1,4 @@
-import { logger } from './loggerService';
+import { logger } from './simpleLogger';
 import { ServiceAccountKey } from './types';
 
 /**

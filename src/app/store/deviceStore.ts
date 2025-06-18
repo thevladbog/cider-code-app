@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { Device, DeviceStatus } from '../types';
-import { rendererLogger } from '../utils/rendererLogger';
+import { rendererLogger } from '../utils/simpleRendererLogger';
 
 interface DeviceState {
   devices: Device[];

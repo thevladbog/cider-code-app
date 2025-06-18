@@ -1,5 +1,5 @@
 import { BackupItem } from '../types';
-import { rendererLogger } from './rendererLogger';
+import { rendererLogger } from './simpleRendererLogger';
 
 /**
  * Сохраняет код продукции в локальный бэкап

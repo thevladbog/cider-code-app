@@ -5,7 +5,7 @@ import {
   PackedCodesResponseDto,
   WriteBoxesCodeDto,
 } from '../api/generated';
-import { rendererLogger } from '../utils/rendererLogger';
+import { rendererLogger } from '../utils/simpleRendererLogger';
 
 /**
  * Интерфейс для управления текущими SSCC кодами по сменам

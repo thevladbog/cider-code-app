@@ -1,7 +1,8 @@
 // Экспорт сервисов логирования
-export * from './loggerConfig';
-export * from './loggerService';
+export * from './simpleLogger';
 export * from './types';
-export * from './yandexCloudLogger';
-export { YandexCloudLoggerSDK } from './yandexCloudLoggerSDK';
-export type { YandexCloudLoggerSDKConfig } from './yandexCloudLoggerSDK';
+
+// Облачное логирование временно отключено
+// export * from './loggerConfig';
+// export * from './loggerService';
+// export * from './yandexCloudLogger';
