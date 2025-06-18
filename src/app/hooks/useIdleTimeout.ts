@@ -46,7 +46,8 @@ export const useIdleTimeout = ({
       console.log('User idle timeout reached, redirecting to login');
 
       // Очищаем данные сессии
-      localStorage.removeItem('workplaceData');
+      const sessionKeys = ['workplaceData', 'userSession', 'authToken']; // Add other session keys
+      sessionKeys.forEach(key => localStorage.removeItem(key));
 
       // Вызываем коллбэк если есть
       if (onTimeout) {
