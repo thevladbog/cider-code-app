@@ -13,12 +13,17 @@ export default defineConfig({
       formats: ['cjs'],
       fileName: () => 'preload.js',
     },
-    rollupOptions: {
-      external: ['electron', /^node:/],
-    },
     minify: process.env.NODE_ENV === 'production',
     sourcemap: true,
-    outDir: '.vite/build',
+    outDir: 'dist',
+    emptyOutDir: false, // чтобы не удалять другие dist-файлы
+    rollupOptions: {
+      external: ['electron'], // Только electron остается внешним
+      output: {
+        format: 'cjs',
+        inlineDynamicImports: true, // Инлайнить все динамические импорты
+      },
+    },
   },
   resolve: {
     alias: {

@@ -1,5 +1,5 @@
 import { DataMatrixData } from '../types';
-import { rendererLogger } from './rendererLogger';
+import { rendererLogger } from './simpleRendererLogger';
 
 /**
  * Парсинг Datamatrix кода в соответствии с указанным форматом:

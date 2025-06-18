@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { rendererLogger } from '../utils/rendererLogger';
+import { rendererLogger } from '../utils/simpleRendererLogger';
 
 import {
   checkDataMatrixCode,

@@ -5,8 +5,8 @@ let path: any = null;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 let app: { getPath: (name: string) => string } | null = null;
 
-// Импорт централизованного логгера
-import { logger } from './services/loggerService';
+// Импорт консольного логгера (облачное логирование отключено)
+import { logger } from './services/simpleLogger';
 
 // Проверяем, работаем ли мы в main процессе (Node.js среда)
 const isMainProcess = typeof window === 'undefined' && typeof process !== 'undefined';

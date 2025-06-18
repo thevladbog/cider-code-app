@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 
 import AppWrapper from './AppWrapper';
 import './styles/global.scss';
-import { rendererLogger } from './utils/rendererLogger';
+import { rendererLogger } from './utils/simpleRendererLogger';
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
 

@@ -1,6 +1,6 @@
 import { DataMatrixData, IShiftScheme } from '../types';
 import { createDataMatrixKey, isMatchingGtin, parseDataMatrix } from '../utils/datamatrix';
-import { rendererLogger } from '../utils/rendererLogger';
+import { rendererLogger } from '../utils/simpleRendererLogger';
 
 // Импортируем функции для работы с бэкапом
 // Путь может отличаться в зависимости от структуры проекта

@@ -69,8 +69,6 @@ jobs:
 
             Please ensure your commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/) format.
 
-            See our [commit guidelines](https://github.com/${{ github.repository }}/blob/main/docs/CONVENTIONAL_COMMITS.md) for more details.
-
             **Format:** \`type(scope): description\`
 
             **Examples:**
