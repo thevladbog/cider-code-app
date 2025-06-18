@@ -1,7 +1,7 @@
 import { Display, Gear, Minus, Square, SquareDashed, Xmark } from '@gravity-ui/icons';
 import { Button, Icon } from '@gravity-ui/uikit';
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ConfirmModal } from '../ConfirmModal';
 import { ThemeToggle } from '../ThemeToggle';
@@ -13,7 +13,11 @@ interface AppHeaderProps {
 
 export const AppHeader: React.FC<AppHeaderProps> = ({ className }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Определяем, находимся ли мы на странице входа
+  const isLoginPage = location.pathname === '/';
 
   const handleSettings = () => {
     navigate('/devices');
@@ -83,15 +87,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ className }) => {
       </div>
 
       <div className={styles.rightSection}>
-        <Button
-          view="flat-contrast"
-          size="s"
-          onClick={handleSettings}
-          title="Настройки и проверка оборудования"
-          className={styles.headerButton}
-        >
-          <Icon data={Gear} size={14} />
-        </Button>
+        {/* Кнопка настроек скрыта на странице входа */}
+        {!isLoginPage && (
+          <Button
+            view="flat-contrast"
+            size="s"
+            onClick={handleSettings}
+            title="Настройки и проверка оборудования"
+            className={styles.headerButton}
+          >
+            <Icon data={Gear} size={14} />
+          </Button>
+        )}
 
         <ThemeToggle size="s" variant="flat-contrast" />
 

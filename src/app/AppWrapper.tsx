@@ -1,13 +1,10 @@
 import { ThemeProvider } from '@gravity-ui/uikit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Navigate, Route, HashRouter as Router, Routes } from 'react-router-dom';
+import { HashRouter as Router } from 'react-router-dom';
 
 import { configureOpenAPI } from './api/config';
-import { DeviceCheckScreen } from './components/DeviceCheckScreen';
-import { ScanScreen } from './components/ScanScreen';
-import { ShiftDetailScreen } from './components/ShiftDetailScreen';
-import { ShiftsScreen } from './components/ShiftsScreen';
+import { AppRoutes } from './components/AppRoutes';
 import { initializeDevices } from './store/deviceStore';
 import {
   initializeSettings,
@@ -64,24 +61,7 @@ function AppWrapper() {
     <ThemeProvider theme={uiSettings.theme}>
       <QueryClientProvider client={queryClient}>
         <Router>
-          <div className="app-container">
-            <Routes>
-              {/* Начальный экран - аутентификация по скану */}
-              <Route path="/" element={<ScanScreen />} />
-
-              {/* Экран проверки оборудования */}
-              <Route path="/devices" element={<DeviceCheckScreen />} />
-
-              {/* Экран списка смен */}
-              <Route path="/shifts" element={<ShiftsScreen />} />
-
-              {/* Экран детальной информации о смене */}
-              <Route path="/shifts/:shiftId" element={<ShiftDetailScreen />} />
-
-              {/* Редирект для неизвестных маршрутов */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
+          <AppRoutes />
         </Router>
       </QueryClientProvider>
     </ThemeProvider>
