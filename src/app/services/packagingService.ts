@@ -1,7 +1,7 @@
 import { packCodes, verifyPackage } from '../api/queries';
 import { DataMatrixData, IShiftScheme, PackageWithSSCC } from '../types';
 import { compareSSCCCodes } from '../utils/datamatrix';
-import { rendererLogger } from '../utils/rendererLogger';
+import { rendererLogger } from '../utils/simpleRendererLogger';
 
 // Импорт функций для генерации этикеток
 const { createSSCCLabelData, generateSSCCLabel } = require('../../printer');

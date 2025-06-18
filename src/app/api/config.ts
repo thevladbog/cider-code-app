@@ -1,5 +1,5 @@
 import { isBeta, isDev } from '../utils/envHelper';
-import { rendererLogger } from '../utils/rendererLogger';
+import { rendererLogger } from '../utils/simpleRendererLogger';
 import { OpenAPI } from './generated';
 
 // Базовый URL API (можно получить из переменной окружения)

@@ -5,7 +5,7 @@ import { useBackup, usePackagingWithVerification } from '@/app/hooks';
 import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
 import { DataMatrixData, IShiftScheme, ShiftStatus } from '@/app/types';
 import { formatGtin } from '@/app/utils';
-import { rendererLogger } from '@/app/utils/rendererLogger';
+import { rendererLogger } from '@/app/utils/simpleRendererLogger';
 import BackupViewerNew from '../BackupViewer/BackupViewerNew';
 import { PackageVerificationModal } from '../PackageVerificationModal';
 

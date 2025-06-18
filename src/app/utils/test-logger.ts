@@ -2,7 +2,7 @@
  * Тестовый файл для проверки работы rendererLogger
  */
 
-import { rendererLogger } from './rendererLogger';
+import { rendererLogger } from './simpleRendererLogger';
 
 // Тестируем все уровни логирования
 export function testRendererLogger(): void {
