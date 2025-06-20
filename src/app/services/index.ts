@@ -6,4 +6,5 @@ export {
   initializeSSCCForShift,
   isShiftInitializedForSSCC,
   packCurrentBoxAndGetNextSSCC,
+  updateMaxBoxCount,
 } from './ssccService';

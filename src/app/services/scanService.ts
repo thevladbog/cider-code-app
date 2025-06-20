@@ -1,10 +1,17 @@
-import { DataMatrixData, IShiftScheme } from '../types';
+import { DataMatrixData, ElectronAPI, IShiftScheme } from '../types';
 import { createDataMatrixKey, isMatchingGtin, parseDataMatrix } from '../utils/datamatrix';
 import { rendererLogger } from '../utils/simpleRendererLogger';
 
 // Импортируем функции для работы с бэкапом
 // Путь может отличаться в зависимости от структуры проекта
 import { getAllScannedCodesFromBackup, isCodeAlreadyScannedInBackup } from '../../backupService';
+
+// Глобальное объявление типа для window.electronAPI
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
 
 // Хранение отсканированных кодов в рамках смены
 interface ScanHistory {
@@ -32,11 +39,13 @@ const voiceMessages = {
  *
  * @param code - Отсканированный код
  * @param shift - Текущая смена
+ * @param skipVisualEffects - Пропустить визуальные эффекты (мигание экрана)
  * @returns Объект с результатами проверки
  */
 export function checkDataMatrixCode(
   code: string,
-  shift: IShiftScheme
+  shift: IShiftScheme,
+  skipVisualEffects = false
 ): {
   isValid: boolean;
   isDuplicate: boolean;
@@ -68,6 +77,11 @@ export function checkDataMatrixCode(
 
   // Проверяем, сканировался ли уже этот код в рамках текущей смены
   const shiftScans = scanHistoryCache[shift.id] || {};
+  // DEBUG: выводим содержимое кэша перед проверкой дубликата
+  console.log(
+    '[DEBUG] scanHistoryCache[shift.id] before duplicate check:',
+    scanHistoryCache[shift.id]
+  );
   const isDuplicateInCache = codeKey in shiftScans;
 
   // Также проверяем в бэкапе (используем raw код)
@@ -76,32 +90,44 @@ export function checkDataMatrixCode(
   // Код считается дубликатом, если он есть либо в кеше, либо в бэкапе
   const isDuplicate = isDuplicateInCache || isDuplicateInBackup;
 
-  // Сохраняем информацию о сканировании ТОЛЬКО если это не дубликат
-  if (!isDuplicate) {
-    if (!scanHistoryCache[shift.id]) {
-      scanHistoryCache[shift.id] = {};
-    }
+  // НЕ сохраняем в кэш здесь - это будет сделано после async проверки в хуке
+  // if (!isDuplicate) {
+  //   if (!scanHistoryCache[shift.id]) {
+  //     scanHistoryCache[shift.id] = {};
+  //   }
 
-    scanHistoryCache[shift.id][codeKey] = {
-      timestamp: Date.now(),
-      data: parsedData,
-    };
-  }
+  //   scanHistoryCache[shift.id][codeKey] = {
+  //     timestamp: Date.now(),
+  //     data: parsedData,
+  //   };
+
+  //   rendererLogger.debug('Added new code to cache', {
+  //     shiftId: shift.id,
+  //     codeKey,
+  //     cacheSize: Object.keys(scanHistoryCache[shift.id]).length,
+  //   });
+  // }
 
   // Формируем сообщение и вызываем соответствующие оповещения
   let message;
   if (isDuplicate) {
     message = 'Этот код уже был отсканирован';
-    // Вызываем визуальное и звуковое оповещение о дубликате
-    notifyDuplicateScan();
+    // Вызываем визуальное и звуковое оповещение о дубликате (только если не отключены эффекты)
+    if (!skipVisualEffects) {
+      notifyDuplicateScan();
+    }
   } else if (!isCorrectProduct) {
     message = 'Продукт не соответствует текущей смене';
-    // Вызываем оповещение о неверном продукте
-    notifyInvalidProduct();
+    // Вызываем оповещение о неверном продукте (только если не отключены эффекты)
+    if (!skipVisualEffects) {
+      notifyInvalidProduct();
+    }
   } else {
     message = 'Код успешно отсканирован';
-    // Вызываем оповещение об успешном сканировании
-    notifySuccessfulScan();
+    // Вызываем оповещение об успешном сканировании (только если не отключены эффекты)
+    if (!skipVisualEffects) {
+      notifySuccessfulScan();
+    }
   }
 
   return {
@@ -119,7 +145,9 @@ export function checkDataMatrixCode(
  * @param shiftId - ID смены
  */
 export function clearScanHistory(shiftId: string): void {
+  const cacheSize = scanHistoryCache[shiftId] ? Object.keys(scanHistoryCache[shiftId]).length : 0;
   delete scanHistoryCache[shiftId];
+  rendererLogger.info('Cleared scan history for shift', { shiftId, clearedCacheSize: cacheSize });
 }
 
 /**
@@ -226,11 +254,18 @@ export function syncCacheWithBackup(shiftId: string): void {
     // Получаем все коды из бэкапа
     const backupData = getAllScannedCodesFromBackup(shiftId);
 
+    rendererLogger.debug('syncCacheWithBackup started', {
+      shiftId,
+      backupDataLength: backupData.length,
+      backupCodes: backupData.slice(0, 3).map(item => item.code), // первые 3 кода для дебага
+    });
+
     // Инициализируем кеш для смены, если его нет
     if (!scanHistoryCache[shiftId]) {
       scanHistoryCache[shiftId] = {};
     }
 
+    let syncedCount = 0;
     // Добавляем коды из бэкапа в кеш (если их еще нет)
     backupData.forEach(item => {
       try {
@@ -244,6 +279,7 @@ export function syncCacheWithBackup(shiftId: string): void {
               timestamp: item.timestamp,
               data: parsedData,
             };
+            syncedCount++;
           }
         }
       } catch (error) {
@@ -252,11 +288,110 @@ export function syncCacheWithBackup(shiftId: string): void {
     });
 
     rendererLogger.info(
-      `Synced ${backupData.length} codes from backup to cache for shift ${shiftId}`
+      `Synced ${syncedCount} codes from backup to cache for shift ${shiftId} (total backup: ${backupData.length})`
     );
   } catch (error) {
     rendererLogger.error('Error syncing cache with backup', { error });
   }
+}
+
+/**
+ * Асинхронно проверяет, сканировался ли данный код в рамках смены (кэш + бэкап)
+ * Работает и в renderer, и в main процессе
+ */
+export async function isCodeDuplicateInShift(
+  shiftId: string,
+  code: string | DataMatrixData
+): Promise<boolean> {
+  // Проверяем в кэше
+  const shiftScans = scanHistoryCache[shiftId] || {};
+  let codeKey: string | null = null;
+  if (typeof code === 'string') {
+    const parsedData = parseDataMatrix(code);
+    if (!parsedData) return false;
+    codeKey = createDataMatrixKey(parsedData);
+  } else {
+    codeKey = createDataMatrixKey(code);
+  }
+
+  // Логирование для отладки
+  rendererLogger.debug('isCodeDuplicateInShift check', {
+    shiftId,
+    codeKey,
+    cacheSize: Object.keys(shiftScans).length,
+    isInCache: codeKey && codeKey in shiftScans,
+  });
+
+  if (codeKey && codeKey in shiftScans) {
+    rendererLogger.debug('Code found in cache - marking as duplicate', { codeKey, shiftId });
+    return true;
+  }
+
+  // Проверяем в бэкапе только в renderer процессе через IPC
+  if (
+    typeof window !== 'undefined' &&
+    window.electronAPI &&
+    window.electronAPI.getSuccessfulScansContent
+  ) {
+    try {
+      const rawCodeString = typeof code === 'string' ? code : code.rawData || '';
+      const successfulScansContent = await window.electronAPI.getSuccessfulScansContent(shiftId);
+      const scannedCodes = successfulScansContent
+        .trim()
+        .split('\n')
+        .filter((line: string) => line.trim() !== '')
+        .map((line: string) => line.trim());
+
+      const isInBackup = scannedCodes.includes(rawCodeString);
+      rendererLogger.debug('Backup check result', {
+        rawCode: rawCodeString,
+        backupCodesCount: scannedCodes.length,
+        isInBackup,
+        firstFewCodes: scannedCodes.slice(0, 3),
+      });
+
+      return isInBackup;
+    } catch (error) {
+      rendererLogger.error('Error checking backup for duplicates', { error });
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Добавляет код в кэш истории сканирования
+ *
+ * @param shiftId - ID смены
+ * @param code - Код для добавления
+ */
+export function addCodeToScanHistory(shiftId: string, code: string | DataMatrixData): void {
+  let parsedData: DataMatrixData;
+
+  if (typeof code === 'string') {
+    const parsed = parseDataMatrix(code);
+    if (!parsed) return;
+    parsedData = parsed;
+  } else {
+    parsedData = code;
+  }
+
+  const codeKey = createDataMatrixKey(parsedData);
+
+  if (!scanHistoryCache[shiftId]) {
+    scanHistoryCache[shiftId] = {};
+  }
+
+  scanHistoryCache[shiftId][codeKey] = {
+    timestamp: Date.now(),
+    data: parsedData,
+  };
+
+  rendererLogger.debug('Added new code to cache', {
+    shiftId,
+    codeKey,
+    cacheSize: Object.keys(scanHistoryCache[shiftId]).length,
+  });
 }
 
 // Функции для визуальных и звуковых оповещений
@@ -299,7 +434,7 @@ function notifySuccessfulScan(): void {
  * @param color - Цвет вспышки ('red', 'green', 'orange')
  * @param times - Количество вспышек
  */
-function flashScreen(color: 'red' | 'green' | 'orange', times = 2): void {
+export function flashScreen(color: 'red' | 'green' | 'orange', times = 2): void {
   // Создаем оверлей для вспышки, если его еще нет
   let flashOverlay = document.getElementById('flash-overlay');
   if (!flashOverlay) {

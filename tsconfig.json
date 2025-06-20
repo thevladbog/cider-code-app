@@ -36,7 +36,7 @@
     "src/serialPortConfig.ts",
     "src/store-wrapper.ts",
     "src/types.ts",
-    "typings.d.ts",
+    "typings.d.ts.old",
     "src/global.d.ts",
     "src/app/**/*"
   ],

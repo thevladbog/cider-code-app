@@ -320,6 +320,10 @@ paths:
       responses:
         '201':
           description: User successfully signed in, JWT token set in cookies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
         '401':
           description: Invalid credentials
       summary: Sign in user
@@ -405,7 +409,7 @@ paths:
   /code/individual:
     post:
       description: >-
-        Create a new individual product code and store it in the database with
+        Create new individual product codes and store them in the database with
         product association
       operationId: CodeController_writeIndividualCode
       parameters: []
@@ -417,14 +421,31 @@ paths:
               $ref: '#/components/schemas/WriteIndividualCodeDto'
       responses:
         '201':
-          description: Code successfully created and stored in database
+          description: Codes successfully created and stored in database
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IndividualCodeDataDto'
+                properties:
+                  count:
+                    type: number
+                    description: Number of codes created
+                  codes:
+                    type: array
+                    description: Array of created codes
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                        code:
+                          type: string
+                        productId:
+                          type: string
+                        status:
+                          type: string
         '400':
           description: Invalid input format or validation error
-      summary: Create individual code
+      summary: Create individual codes
       tags:
         - Codes
         - Individual
@@ -502,6 +523,43 @@ paths:
       tags:
         - Codes
         - Status
+  /code/download:
+    get:
+      description: >-
+        Download codes for a specific shift as a text file. Can include box
+        codes if requested.
+      operationId: CodeController_downloadCodes
+      parameters:
+        - name: includeBoxes
+          required: false
+          in: query
+          description: Whether to include box codes in the download
+          schema:
+            example: false
+            type: boolean
+        - name: shiftId
+          required: true
+          in: query
+          description: ID of the shift to download codes for
+          schema:
+            example: shift_123
+            type: string
+      responses:
+        '200':
+          description: Text file with codes successfully generated
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Text file containing codes, one per line
+        '400':
+          description: Invalid input data format
+        '404':
+          description: Shift not found
+      summary: Download codes as text file
+      tags:
+        - Codes
+        - Download
   /operator:
     post:
       description: Create a new operator account in the system
@@ -812,6 +870,32 @@ paths:
         '404':
           description: Shift can't be found or something went wrong
       summary: Get shift by ID for operator
+      tags:
+        - Shift
+        - Operator
+  /shift/operator/create:
+    post:
+      description: Create a new production shift by operator using EAN/GTIN code
+      operationId: ShiftController_createByOperator
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShiftByOperatorDto'
+      responses:
+        '201':
+          description: Shift successfully created by operator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IShiftFindOne'
+        '400':
+          description: Invalid data or product not found
+        '404':
+          description: Product with specified GTIN not found or not active
+      summary: Create shift by operator
       tags:
         - Shift
         - Operator
@@ -1440,6 +1524,13 @@ components:
       required:
         - email
         - password
+    UserLoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/CreatedUserDto'
+      required:
+        - user
     ResetPasswordRequestDto:
       type: object
       properties:
@@ -1467,7 +1558,10 @@ components:
       type: object
       properties:
         code:
-          type: string
+          type: array
+          minItems: 1
+          items:
+            type: string
         status:
           type: string
           enum:
@@ -1483,38 +1577,6 @@ components:
         - code
         - status
         - productId
-    IndividualCodeDataDto:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-            - NEW
-            - USED
-        id:
-          type: integer
-        code:
-          type: string
-        productId:
-          type: string
-        created: {}
-        modified:
-          nullable: true
-        boxesCodeId:
-          type: integer
-          nullable: true
-        shiftId:
-          type: string
-          nullable: true
-      required:
-        - status
-        - id
-        - code
-        - productId
-        - created
-        - modified
-        - boxesCodeId
-        - shiftId
     WriteBoxesCodeDto:
       type: object
       properties:
@@ -1880,6 +1942,16 @@ components:
     UpdateShiftDto:
       type: object
       properties: {}
+    CreateShiftByOperatorDto:
+      type: object
+      properties:
+        ean:
+          type: string
+          minLength: 8
+          maxLength: 14
+        plannedDay: {}
+      required:
+        - ean
     IDeletedShift:
       type: object
       properties:

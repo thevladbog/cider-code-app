@@ -36,7 +36,6 @@ export const fetchWorkplaceByBarcode = async (barcode: string): Promise<IOperato
 
   // Сохраняем токен для дальнейших запросов
   if (loginResponse.token) {
-    console.log('Token received:', loginResponse.token);
 
     // Сохраняем токен в localStorage и устанавливаем для обеих библиотек
     saveOpenAPIToken(loginResponse.token);

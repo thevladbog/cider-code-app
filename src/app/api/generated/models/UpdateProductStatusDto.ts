@@ -1,7 +1,8 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-
+/* eslint-disable */
 export type UpdateProductStatusDto = {
-  status: 'ACTIVE' | 'INACTIVE' | 'PAUSED' | 'REGISTRATION' | 'ARCHIVED';
+    status: 'ACTIVE' | 'INACTIVE' | 'PAUSED' | 'REGISTRATION' | 'ARCHIVED';
 };
+

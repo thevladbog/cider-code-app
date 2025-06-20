@@ -10,7 +10,6 @@ export type {
   CreateOperatorDto,
   CreateProductDto,
   CreateShiftDto,
-  IndividualCodeDataDto,
   IOperatorFindMany,
   IOperatorFindOne,
   IProductFindMany,
@@ -300,3 +299,6 @@ export interface PackageWithSSCC {
   verifiedBy?: string; // Кто проверил (ID оператора)
   verifiedAt?: number; // Когда проверено
 }
+
+// Реэкспорт SSCCLabelData из printer модуля для удобства
+export type { SSCCLabelData };

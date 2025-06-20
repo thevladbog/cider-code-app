@@ -47,6 +47,13 @@ import { getAppEnvironment } from './utils/environment';
 
 let mainWindow: BrowserWindow | null = null;
 
+// Отключаем веб-безопасность для обхода CORS в Electron
+app.commandLine.appendSwitch('--disable-web-security');
+app.commandLine.appendSwitch('--disable-features', 'VizDisplayCompositor');
+app.commandLine.appendSwitch('--ignore-certificate-errors');
+app.commandLine.appendSwitch('--ignore-ssl-errors');
+app.commandLine.appendSwitch('--ignore-certificate-errors-spki-list');
+
 // Инициализация логгера
 async function initializeLogger() {
   try {
@@ -91,7 +98,9 @@ function createWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: true,
+      webSecurity: false, // Отключаем CORS для API запросов
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true,
     },
   });
 
@@ -143,6 +152,38 @@ app.whenReady().then(async () => {
       },
     });
   });
+
+  // Более эффективная обработка CORS для всех внешних API запросов
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: ['https://*/*'] }, // Обрабатываем все HTTPS запросы
+    (details, callback) => {
+      const responseHeaders = { ...details.responseHeaders };
+
+      // Добавляем CORS заголовки для всех API ответов
+      responseHeaders['Access-Control-Allow-Origin'] = ['*'];
+      responseHeaders['Access-Control-Allow-Methods'] = ['GET, POST, PUT, DELETE, OPTIONS, PATCH'];
+      responseHeaders['Access-Control-Allow-Headers'] = [
+        'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      ];
+      responseHeaders['Access-Control-Allow-Credentials'] = ['true'];
+      responseHeaders['Access-Control-Max-Age'] = ['86400'];
+
+      callback({ responseHeaders });
+    }
+  );
+
+  // Обработка preflight OPTIONS запросов
+  session.defaultSession.webRequest.onBeforeRequest(
+    { urls: ['https://*/*'] },
+    (details, callback) => {
+      if (details.method === 'OPTIONS') {
+        // Позволяем preflight запросы проходить
+        callback({});
+      } else {
+        callback({});
+      }
+    }
+  );
 
   createWindow();
 

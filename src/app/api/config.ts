@@ -15,7 +15,13 @@ if (isDev()) {
 // Настройка OpenAPI клиента
 export const configureOpenAPI = () => {
   OpenAPI.BASE = baseURL;
-  OpenAPI.WITH_CREDENTIALS = true;
+  OpenAPI.WITH_CREDENTIALS = false; // Отключаем credentials для обхода CORS
+  
+  // В Electron среде можно использовать дополнительные настройки
+  if (typeof window !== 'undefined' && window.process && window.process.type === 'renderer') {
+    console.log('Running in Electron renderer process - CORS restrictions bypassed');
+  }
+  
   rendererLogger.info('OpenAPI configured', {
     BASE: OpenAPI.BASE,
     WITH_CREDENTIALS: OpenAPI.WITH_CREDENTIALS,

@@ -3,13 +3,14 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CreatedUserDto = {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  password?: string;
-  picture: string | null;
-  role: 'ADMIN' | 'SUPERVISOR' | 'USER' | 'GUEST';
-  created: any;
-  modified: any;
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    password?: string;
+    picture: string | null;
+    role: 'ADMIN' | 'SUPERVISOR' | 'USER' | 'GUEST';
+    created: any;
+    modified: any;
 };
+

@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { CreatedUserDto } from './CreatedUserDto';
-export type IUserFindOne = {
-    result: CreatedUserDto;
+export type UserLoginResponse = {
+    user: CreatedUserDto;
 };
 

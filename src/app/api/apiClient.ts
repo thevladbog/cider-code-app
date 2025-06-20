@@ -18,6 +18,20 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 секунд тайм-аут
+  // В Electron отключаем все CORS проверки
+  withCredentials: false, // Отключаем credentials для упрощения CORS
+  maxRedirects: 5,
+  // Дополнительные настройки для Electron
+  transformRequest: [
+    function (data, headers) {
+      // Удаляем проблемные заголовки
+      if (headers) {
+        delete headers['Access-Control-Request-Method'];
+        delete headers['Access-Control-Request-Headers'];
+      }
+      return data;
+    },
+  ],
 });
 
 // Глобальное состояние аутентификации

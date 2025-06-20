@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { CreatedUserDto } from './CreatedUserDto';
-export type IUserFindOne = {
-    result: CreatedUserDto;
+export type CreateShiftByOperatorDto = {
+    ean: string;
+    plannedDay?: any;
 };
 

@@ -303,3 +303,24 @@ export function resetCurrentBox(shiftId: string): void {
 
   rendererLogger.info('Reset current box for shift', { shiftId, boxItemCount: 0 });
 }
+
+/**
+ * Обновляет максимальное количество товаров в коробе для смены
+ */
+export function updateMaxBoxCount(shiftId: string, newMaxCount: number): void {
+  const state = ssccState[shiftId];
+
+  if (!state) {
+    rendererLogger.warn('SSCC state not found for shift', { shiftId });
+    return;
+  }
+
+  const oldMaxCount = state.maxBoxCount;
+  state.maxBoxCount = newMaxCount;
+
+  rendererLogger.info('Updated max box count for shift', {
+    shiftId,
+    oldMaxCount,
+    newMaxCount,
+  });
+}

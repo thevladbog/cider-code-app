@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { rendererLogger } from '../utils/simpleRendererLogger';
 
 import {
+  addCodeToScanHistory,
   checkDataMatrixCode,
   clearScanHistory,
+  flashScreen,
   getScannedCodes,
+  isCodeDuplicateInShift,
   removeCodesFromHistory,
   syncCacheWithBackup,
 } from '../services/scanService';
@@ -80,6 +83,7 @@ export function useScannerWithPacking({
 
   // Инициализируем состояние пустым массивом, чтобы избежать вызова getScanned при каждом рендере
   const [scannedCodes, setScannedCodes] = useState<DataMatrixData[]>([]);
+
   // Обновляем scannedCodes при изменении смены
   useEffect(() => {
     if (shift?.id) {
@@ -154,10 +158,27 @@ export function useScannerWithPacking({
     async (barcode: string) => {
       if (!shift || !enabled) return;
 
-      rendererLogger.info('Scanned barcode', { barcode });
+      rendererLogger.info('Scanned barcode', { barcode }); // Проверяем отсканированный код (без визуальных эффектов)
+      const checkResult = checkDataMatrixCode(barcode, shift, true);
 
-      // Проверяем отсканированный код
-      const checkResult = checkDataMatrixCode(barcode, shift);
+      // Асинхронная проверка дубликатов в бэкапе
+      const isDuplicateAsync = await isCodeDuplicateInShift(shift.id, barcode);
+      if (isDuplicateAsync && checkResult.data && !checkResult.isDuplicate) {
+        checkResult.isDuplicate = true;
+        checkResult.message = 'Этот код уже был отсканирован (async check)';
+      }
+
+      // Определяем визуальную реакцию после всех проверок
+      if (checkResult.isDuplicate) {
+        // Красное мигание для всех дубликатов (включая async check)
+        flashScreen('red');
+      } else if (!checkResult.isCorrectProduct) {
+        // Оранжевое мигание для неправильного продукта
+        flashScreen('orange');
+      } else if (checkResult.isValid) {
+        // Зеленое мигание только для успешных сканирований
+        flashScreen('green');
+      }
 
       // Устанавливаем сообщение
       setScanMessage(checkResult.message || null);
@@ -175,6 +196,9 @@ export function useScannerWithPacking({
         } else if (!checkResult.isCorrectProduct) {
           onInvalidProduct?.(checkResult.data);
         } else if (checkResult.isValid) {
+          // Добавляем код в кэш только если он прошел все проверки
+          addCodeToScanHistory(shift.id, checkResult.data);
+
           // Обновляем список отсканированных кодов
           const updatedCodes = getScanned();
           setScannedCodes(updatedCodes);

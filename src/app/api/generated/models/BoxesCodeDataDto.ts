@@ -3,12 +3,13 @@
 /* tslint:disable */
 /* eslint-disable */
 export type BoxesCodeDataDto = {
-  id: number;
-  gln: string;
-  counter: number;
-  sscc: string;
-  productId: string;
-  created: any;
-  modified: any;
-  shiftId: string | null;
+    id: number;
+    gln: string;
+    counter: number;
+    sscc: string;
+    productId: string;
+    created: any;
+    modified: any;
+    shiftId: string | null;
 };
+

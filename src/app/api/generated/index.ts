@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-
+/* eslint-disable */
 export { ApiError } from './core/ApiError';
 export { CancelablePromise, CancelError } from './core/CancelablePromise';
 export { OpenAPI } from './core/OpenAPI';
@@ -15,10 +15,10 @@ export type { CreatedUserDto } from './models/CreatedUserDto';
 export type { CreateOperatorDto } from './models/CreateOperatorDto';
 export type { CreateOrderToDeliveryDto } from './models/CreateOrderToDeliveryDto';
 export type { CreateProductDto } from './models/CreateProductDto';
+export type { CreateShiftByOperatorDto } from './models/CreateShiftByOperatorDto';
 export type { CreateShiftDto } from './models/CreateShiftDto';
 export type { CreateUserDto } from './models/CreateUserDto';
 export type { IDeletedShift } from './models/IDeletedShift';
-export type { IndividualCodeDataDto } from './models/IndividualCodeDataDto';
 export type { IOperatorFindMany } from './models/IOperatorFindMany';
 export type { IOperatorFindOne } from './models/IOperatorFindOne';
 export type { IOrderToDeliveryFindMany } from './models/IOrderToDeliveryFindMany';
@@ -45,12 +45,14 @@ export type { UpdateProductDto } from './models/UpdateProductDto';
 export type { UpdateProductStatusDto } from './models/UpdateProductStatusDto';
 export type { UpdateShiftDto } from './models/UpdateShiftDto';
 export type { UpdateUserDto } from './models/UpdateUserDto';
+export type { UserLoginResponse } from './models/UserLoginResponse';
 export type { WriteBoxesCodeDto } from './models/WriteBoxesCodeDto';
 export type { WriteIndividualCodeDto } from './models/WriteIndividualCodeDto';
 
 export { AuthenticationService } from './services/AuthenticationService';
 export { BoxesService } from './services/BoxesService';
 export { CodesService } from './services/CodesService';
+export { DownloadService } from './services/DownloadService';
 export { IndividualService } from './services/IndividualService';
 export { OperatorService } from './services/OperatorService';
 export { PackagingService } from './services/PackagingService';

@@ -61,3 +61,13 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare global {
+  interface Window {
+    electronAPI: {
+      getAllScannedCodesForShift: (shiftId: string) => Promise<string[]>;
+      getSuccessfulScansContent: (shiftId: string) => Promise<string>;
+      // ... другие методы, если есть ...
+    };
+  }
+}

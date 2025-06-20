@@ -33,6 +33,7 @@ import { useShift, useUpdateShiftStatus, useUserProfile } from '@/app/api/querie
 import { useBackup } from '@/app/hooks/useBackup';
 import { useScannerWithPacking } from '@/app/hooks/useScannerWithPacking';
 import { useScannerWithoutPacking } from '@/app/hooks/useScannerWithoutPacking';
+import { updateMaxBoxCount } from '@/app/services';
 import { DataMatrixData, ShiftStatus } from '@/app/types';
 import { formatGtin, formatNumber, formatSSCC } from '@/app/utils';
 import { compareSSCCCodes } from '@/app/utils/datamatrix';
@@ -419,6 +420,10 @@ export const ShiftDetailScreen: React.FC = () => {
         const plannedDate = new Date(shift.result.plannedDate);
         const expirationDate = new Date(plannedDate);
         expirationDate.setDate(plannedDate.getDate() + shift.result.product.expirationInDays); // Печатаем SSCC этикетку с полными данными
+        if (!window.electronAPI) {
+          throw new Error('Electron API не доступен');
+        }
+
         const printResult = await window.electronAPI.printSSCCLabelWithData({
           ssccCode: currentSSCC,
           shiftId: shift.result.id,
@@ -867,6 +872,12 @@ export const ShiftDetailScreen: React.FC = () => {
         });
         console.log('Box capacity updated successfully:', capacity);
 
+        // Обновляем локальное состояние SSCC сервиса
+        if (useCrates) {
+          updateMaxBoxCount(shiftId, capacity);
+          console.log('Updated max box count in SSCC service:', capacity);
+        }
+
         // Инвалидируем кэш для обновления данных смены
         await queryClient.invalidateQueries({
           queryKey: ['shift', shiftId],
@@ -875,7 +886,7 @@ export const ShiftDetailScreen: React.FC = () => {
         console.error('Failed to update box capacity:', error);
       }
     },
-    [shiftId, shift, queryClient]
+    [shiftId, shift, queryClient, useCrates]
   );
 
   // Колонки для таблицы кодов

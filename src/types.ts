@@ -21,6 +21,14 @@ export interface ElectronAPI {
   getSavedPrinter: () => Promise<PrinterSettings | null>;
   printBarcode: (barcode: string) => Promise<{ success: boolean; error?: string }>;
   printZpl: (zplCode: string) => Promise<{ success: boolean; error?: string }>;
+  printSSCCLabel: (
+    sscc: string,
+    productName?: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  printSSCCLabelWithData: (
+    data: SSCCLabelData,
+    labelTemplate?: string
+  ) => Promise<{ success: boolean; error?: string }>;
   // Бэкап
   /* eslint-disable */
   saveCodeToBackup: (
@@ -91,6 +99,10 @@ export interface ElectronAPI {
 
   // Методы интерфейса
   toggleFullscreen: () => Promise<boolean>;
+  toggleKioskMode: () => Promise<boolean>;
+  minimizeWindow: () => Promise<void>;
+  maximizeWindow: () => Promise<void>;
+  closeWindow: () => Promise<void>;
   quitApp: () => Promise<void>;
   playSound: (soundName: string) => Promise<{ success: boolean; error?: string }>;
 
@@ -248,4 +260,18 @@ export interface PackageWithSSCC {
   timestamp: number; // Временная метка создания
   verifiedBy?: string; // Кто проверил (ID оператора)
   verifiedAt?: number; // Когда проверено
+}
+
+// Тип для данных SSCC этикетки
+export interface SSCCLabelData {
+  ssccCode: string;
+  shiftId: string;
+  fullName: string;
+  plannedDate: string;
+  expiration: string;
+  barcode: string;
+  alcoholCode: string;
+  currentCountInBox: number;
+  volume: number;
+  pictureUrl: string;
 }
